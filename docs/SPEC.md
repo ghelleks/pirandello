@@ -33,6 +33,7 @@ Each buildable unit has its own spec and (forthcoming) scenarios file in `docs/s
 | `archive` skill           | `docs/specs/archive-skill/`           | Task folder archiving                           |
 | `reference-refresh` skill | `docs/specs/reference-refresh-skill/` | Drive export + summary header                   |
 | Cursor extension          | `docs/specs/cursor-extension/`        | Distribution plugin                             |
+| Project blog              | `docs/specs/project-blog/`            | GitHub Pages Jekyll site + first post           |
 
 
 ---
@@ -49,8 +50,11 @@ These apply across all units. Any proposal that violates them is invalid regardl
 4. **Role isolation.** No unit may write to a Role's `Memory/` from a different Role's session context. Write-local is a hard constraint; global-read is a soft capability.
 5. **Session root is the Role directory.** No unit may assume or require the workspace root to be the base directory or a subdirectory of a Role.
 6. `**masks` commands are idempotent.** Every `masks` subcommand must be safe to run twice on a fully configured system with no side effects.
-7. `**SELF.md` is never directly committed by an agent.** The only path to a `SELF.md` change is the `masks reflect` PR ritual.
-8. **Size budgets are hard limits.** `SELF.md` ≤ 500 tokens. `ROLE.md` ≤ 500 tokens. Always-loaded tiers combined ≤ 1,500 tokens. Proposals that produce documents exceeding these limits fail.
+7. **`SELF.md` is never directly committed by an agent — with one exception.** The initial creation of `personal/SELF.md` during onboarding is a one-time bootstrap commit made directly to `main` by the onboarding skill. After that first commit, the only path to any `SELF.md` change is the `masks reflect` PR ritual. The bootstrap exception must be documented in `personal/git log` with the commit message `onboarding: bootstrap SELF.md`.
+8. **Per-file size budgets are hard limits.** `SELF.md` ≤ 500 tokens. `ROLE.md` ≤ 500 tokens. Proposals that produce documents exceeding these per-file limits fail.
+9. **Combined always-loaded budget is a warned threshold.** The combined token count of `SELF.md` + `ROLE.md` + `CONTEXT.md` should not exceed 1,500 tokens. The system warns when this threshold is crossed; no content is truncated or withheld. The user is responsible for keeping documents within the budget.
+10. **The repo root must contain a `LICENSE` file.** MIT license. Any plan that omits it fails S-09.
+11. **The repo root must contain a `README.md`.** It must explain what Pirandello is, state the license, and link to `docs/design.md`. It must contain no personal content. Any plan that omits it fails S-10.
 
 ### Soft constraints
 
@@ -73,5 +77,8 @@ These are system-wide checks. Unit-level proposals are additionally evaluated ag
 | S-03 | Hook-enforced reliability | Any behaviour described as "must happen every session" is implemented in a shell hook, not only in AGENTS.md |
 | S-04 | Write-local respected     | No unit writes Memory/ files to a Role other than the one whose workspace is active                          |
 | S-05 | Idempotent commands       | Every `masks` subcommand in the proposal can be run twice without error or unintended side effects           |
-| S-06 | SELF.md PR-only           | No proposal includes a code path that commits directly to `SELF.md`                                          |
-| S-07 | Size budgets              | No produced document exceeds its stated token budget (SELF.md ≤500, ROLE.md ≤500, always-loaded stack ≤1500) |
+| S-06 | SELF.md PR-only           | No proposal includes a code path that commits directly to `SELF.md`, except the onboarding skill's one-time bootstrap commit (message: `onboarding: bootstrap SELF.md`); all subsequent changes must go through a `masks reflect` PR                                         |
+| S-07 | Per-file size budgets     | No produced document exceeds its per-file token budget (SELF.md ≤500, ROLE.md ≤500)                           |
+| S-08 | Combined budget warning   | When SELF.md + ROLE.md + CONTEXT.md exceeds 1,500 tokens, `start.sh` emits a warning; no content is truncated  |
+| S-09 | LICENSE present           | The repo root contains a `LICENSE` file with MIT license text                                                    |
+| S-10 | README present            | The repo root contains a `README.md` that describes the project, states the license, and links to `docs/design.md`; contains no personal content |

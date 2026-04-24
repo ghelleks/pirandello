@@ -80,6 +80,6 @@ See Static Evaluation Metrics.
 | M-03 | setup creates all structure | After first run, all required dirs, INDEX.md files, symlink, and hook files exist |
 | M-04 | add-role complete | After `masks add-role foo`, `$BASE/foo/` contains Memory/, Reference/, Archive/, each with INDEX.md, plus .env, .gitignore, OODA.md, and installed hooks |
 | M-05 | sync skips remoteless roles | `masks sync` on a Role with no git remote prints a warning and exits 0 (does not error) |
-| M-06 | doctor structured output | `masks doctor` prints a clearly labelled pass/fail line for each of the 6 checks; the OODA.md check passes only when the agenda parser can extract at least one skill name |
+| M-06 | doctor structured output | `masks doctor` prints a clearly labelled pass/fail/warn line for each of the 7 checks; checks 1–6 are blocking (non-zero exit on failure); check 7 (`always_loaded_budget`) is warn-only and never drives a non-zero exit; the OODA.md check passes only when the agenda parser can extract at least one skill name |
 | M-07 | doctor non-zero on failure | `masks doctor` exits non-zero if any check fails |
 | M-08 | Base path resolution | All commands resolve base from `MASKS_BASE` env var, then `~/Desktop`, never hardcode a path |

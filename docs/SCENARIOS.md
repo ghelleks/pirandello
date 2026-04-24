@@ -3,7 +3,7 @@
 **Companion spec:** `docs/SPEC.md`  
 **Date:** 2026-04-23
 
-These scenarios test properties that span multiple units. No single unit spec can cover them because they require the full system to be running — hooks firing, multiple repos, the mcp-memory database, and the synthesis-to-reflect pipeline working end-to-end. Each scenario references the system-level constraints (S-01 through S-07) from `docs/SPEC.md`.
+These scenarios test properties that span multiple units. No single unit spec can cover them because they require the full system to be running — hooks firing, multiple repos, the mcp-memory database, and the synthesis-to-reflect pipeline working end-to-end. Each scenario references the system-level constraints (S-01 through S-10) from `docs/SPEC.md`.
 
 ---
 
@@ -128,12 +128,13 @@ System constraint references: S-01, S-04, design intent: "Memory is unified in t
 A user's system has been running for six months. `reflect` has run twice; SELF.md is at 490 tokens. The most recent work Role onboarding produced a ROLE.md at 480 tokens. During a session, the agent is asked to update CONTEXT.md with a very detailed status report — which would produce a 1,200-token document.
 
 Questions the proposal must answer:
-- Does the system (via AGENTS.md convention or hook enforcement) prevent the always-loaded tiers from exceeding ~1,500 tokens combined?
-- If SELF.md (490) + ROLE.md (480) = 970 tokens already used, is CONTEXT.md constrained to ~530 tokens?
-- Does `masks doctor` or `masks status` surface any alert when the always-loaded tiers approach the budget limit?
-- Is the budget constraint ever enforced by infrastructure, or is it always left to agent instructions? (The design doc places this in hard constraints — a writer must address which mechanism enforces it.)
+- When SELF.md (490) + ROLE.md (480) + a 1,200-token CONTEXT.md are injected at session start, does the system warn that the combined budget is exceeded?
+- Is the warning surfaced to the user in a way they will notice — not silently swallowed?
+- Is any content truncated or withheld from the agent as a result of the budget breach?
+- Does `masks doctor` surface a budget alert and tell the user specifically how many tokens to trim from CONTEXT.md?
+- Is budget monitoring implemented in infrastructure (hook + CLI), not only in AGENTS.md instructions?
 
-System constraint references: S-07 (size budgets), S-03 (infrastructure enforces)
+System constraint references: S-07 (per-file size budgets), S-08 (combined budget warning), S-03 (infrastructure enforces)
 
 ---
 
@@ -158,9 +159,9 @@ System constraint references: S-03 (hook-enforced injection), design intent: con
 Running a complete session — Memory writes, task folder archival, CONTEXT.md update — produces commits in the Role repo and zero commits in `~/Code/pirandello/`.  
 Pass: `git log ~/Code/pirandello/` is unchanged before and after any session; all session output lands in Role repos.
 
-**T2 SELF.md on `main` is never newer than the last merged reflect PR.**  
-`git log --format="%H %ai" personal/SELF.md` shows no commit authored between reflect PR merges. The only commits touching SELF.md on main are PR merge commits.  
-Pass: `git log personal/SELF.md` contains no commits with messages other than merge commits from reflect branches.
+**T2 SELF.md on `main` is changed only by the onboarding bootstrap or a merged reflect PR.**  
+`git log --format="%H %ai %s" personal/SELF.md` shows exactly two classes of commit: one initial commit with message `onboarding: bootstrap SELF.md`, and zero or more merge commits from `reflect/*` branches. No other commit messages are acceptable.  
+Pass: every entry in `git log personal/SELF.md` has a message matching either `onboarding: bootstrap SELF.md` or a merge commit from a `reflect/*` branch.
 
 **T3 Database rebuild restores full search capability.**  
 Deleting the mcp-memory database file and running `masks index <role> --rebuild` for every Role produces a database that returns the same semantic search results as before deletion.  
@@ -174,9 +175,9 @@ Pass: `git log --all --full-history -- "**/alice.md"` run from the personal repo
 Running `masks setup`, `masks sync`, `masks status`, `masks doctor`, `masks index <role>`, and `masks reflect` (when no patterns qualify) twice in a row on a fully configured system produces no errors and no unintended side effects.  
 Pass: a diff of all affected directories before and after the second run of each command shows zero changes; exit codes are 0.
 
-**T6 Always-loaded context is ≤1,500 tokens across any Role.**  
-For every Role, the combined token count of SELF.md + ROLE.md + CONTEXT.md injected at session start is ≤1,500 tokens.  
-Pass: token-counting the concatenated output of `=== SELF ===`, `=== ROLE ===`, and `=== CONTEXT ===` sections for any session returns ≤1,500.
+**T6 Always-loaded budget breach triggers a warning.**  
+When the combined token count of SELF.md + ROLE.md + CONTEXT.md injected at session start exceeds 1,500 tokens, `start.sh` emits a visible warning. All content is still injected in full.  
+Pass: with a SELF.md + ROLE.md + CONTEXT.md combination that totals >1,500 tokens, the session preamble contains the budget warning; token-counting the injected `=== SELF ===`, `=== ROLE ===`, and `=== CONTEXT ===` sections confirms all content is present.
 
 **T7 Every "must happen every session" behavior has a hook implementation.**  
 All behaviors that the design doc describes as occurring at every session start or session end — pulling repos, injecting context, committing, pushing, updating the mcp-memory index — are implemented in shell hooks, not only in AGENTS.md instructions.  
@@ -200,6 +201,6 @@ Pass: every entry in SELF.md is traceable to evidence in ≥2 Role's Memory file
 
 **Personal content committed to `pirandello/`.** A SELF.md draft, a ROLE.md, a Memory file, or a `.env` value is committed to `~/Code/pirandello/` — perhaps during a session opened at the wrong workspace root. Symptom: personal or confidential content appears in the public `pirandello` repo; colleagues who clone the framework inherit identifying information. Indicates: S-01 violated; session rooted in pirandello/ instead of a Role directory, or a skill wrote to the wrong path. Maps to: S-01.
 
-**Always-loaded context exceeds 1,500 tokens.** SELF.md grows to 600 tokens over successive reflect merges, or CONTEXT.md is written without a size constraint. Symptom: the effective context window available for work shrinks; agents lose track of earlier session context; quality degrades with no obvious cause. Indicates: S-07 violated; no mechanism enforces the combined budget beyond individual document limits. Maps to: S-07.
+**Always-loaded context exceeds 1,500 tokens without warning.** SELF.md grows to 600 tokens over successive reflect merges, or CONTEXT.md is written without a size constraint, and the session-start hook fails to emit the budget warning. Symptom: the effective context window available for work shrinks; quality degrades with no obvious cause; the user has no signal to act on. Indicates: S-07 or S-08 violated; hook budget check not implemented or silently suppressed. Maps to: S-07, S-08.
 
 **`masks` commands not idempotent.** Re-running `masks setup` or `masks add-role` on an existing system overwrites credentials, duplicates hooks, or re-inits git repos. Symptom: `.env` files containing real credentials are replaced with empty templates; hook scripts accumulate duplicate entries; git repos are left in a conflicted state. Indicates: S-05 violated; idempotency guards not implemented. Maps to: S-05.

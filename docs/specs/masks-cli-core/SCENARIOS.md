@@ -73,10 +73,10 @@ Metric cross-references: M-05
 
 ### 5. `masks doctor` on a healthy system
 
-A user runs `masks doctor` on a fully configured, connected system. All six checks should pass: AGENTS.md symlink valid, each Role has a `.env`, all configured remotes are reachable, mcp-memory DB path exists and is set, all OODA.md files are valid, all guard scripts are executable.
+A user runs `masks doctor` on a fully configured, connected system. All seven checks should pass or warn green: AGENTS.md symlink valid, each Role has a `.env`, all configured remotes are reachable, mcp-memory DB path exists and is set, all OODA.md files are valid, all guard scripts are executable, and the always-loaded token budget is within threshold.
 
 Questions the proposal must answer:
-- Does the command print a clearly labelled pass result for each of the six checks?
+- Does the command print a clearly labelled pass/warn result for each of the seven checks?
 - Does it exit 0?
 - Can the output be parsed by a script (or is `--json` provided)?
 
@@ -86,15 +86,30 @@ Metric cross-references: M-06, M-07
 
 ### 6. `masks doctor` with failures
 
-A user runs `masks doctor`. The mcp-memory DB file is missing, one Role's remote is unreachable (network down), and one guard script was accidentally made non-executable. Three of the six checks fail.
+A user runs `masks doctor`. The mcp-memory DB file is missing, one Role's remote is unreachable (network down), and one guard script was accidentally made non-executable. Three of the six blocking checks fail; the always-loaded budget check still runs and reports separately.
 
 Questions the proposal must answer:
 - Does the command print a clear FAIL result for each of the three failing checks, naming exactly what failed?
-- Does it still run all six checks even when some fail (not abort on first failure)?
+- Does it still run all seven checks even when some fail (not abort on first failure)?
 - Does it exit non-zero?
 - Is the passing check output still shown alongside the failures?
 
 Metric cross-references: M-06, M-07
+
+---
+
+### 6b. `masks doctor` — always-loaded budget warning
+
+A user's system has been running for several months. `personal/SELF.md` is 490 tokens, `work/ROLE.md` is 480 tokens, and `work/CONTEXT.md` has grown to 620 tokens after a busy quarter. The combined total is 1,590 tokens, exceeding the 1,500-token threshold.
+
+Questions the proposal must answer:
+- Does `masks doctor` report the `always_loaded_budget` check as WARN (not FAIL) for the work Role?
+- Does the WARN output name the current combined total, the 1,500-token threshold, and the specific overage?
+- Does the remediation message tell the user which file to shorten and by approximately how many tokens?
+- Does the command still exit 0 (the warn-only check does not drive a non-zero exit)?
+- If a different Role is within budget, does that Role show PASS for the same check?
+
+Metric cross-references: M-06, S-08
 
 ---
 
@@ -147,7 +162,7 @@ Running `masks sync` on a single Role with no `origin` remote results in a warni
 Pass: exit code is 0; output contains a human-readable warning naming the skipped Role.
 
 **T6 `masks doctor` structured output.**  
-Running `masks doctor` produces exactly one clearly labelled pass/fail line per check for all six checks, regardless of whether they pass or fail.  
+Running `masks doctor` produces exactly one clearly labelled pass/fail/warn line per check for all seven checks, regardless of outcome.  
 Pass: the output contains six labelled lines (or six JSON objects); no check is silently omitted.
 
 **T7 `masks doctor` exits non-zero on any failure.**  
@@ -166,7 +181,7 @@ Pass: no literal `~/Desktop` or `$HOME/Desktop` string appears in any command's 
 
 **`masks sync` errors on remoteless Role and aborts.** A Role with no remote causes `masks sync` to fail with a non-zero exit and stop processing remaining Roles. Symptom: roles after the remoteless one are never pulled or pushed. Indicates: missing per-Role error isolation in the sync loop. Maps to: M-05.
 
-**`masks doctor` only checks the first failing condition.** The command exits early on the first failed check rather than running all six checks. Symptom: users see one failure, fix it, re-run doctor, find another — never get a complete health picture in one run. Indicates: early exit on first non-zero check rather than accumulated results. Maps to: M-06.
+**`masks doctor` only checks the first failing condition.** The command exits early on the first failed check rather than running all seven checks. Symptom: users see one failure, fix it, re-run doctor, find another — never get a complete health picture in one run. Indicates: early exit on first non-zero check rather than accumulated results. Maps to: M-06.
 
 **Base path hardcoded to `~/Desktop`.** Commands fail when a user configured a custom base via `--base`. Symptom: `masks status` or `masks sync` runs without error but operates on the wrong directory tree. Indicates: `MASKS_BASE` env var not read, fallback logic not implemented. Maps to: M-08.
 
