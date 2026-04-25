@@ -9,7 +9,7 @@
 
 ### 1. New consulting role — all credentials provided
 
-A user runs `masks add-role consulting --interactive`. The directory has been created, `.env.example` copied to `consulting/.env`, and hooks installed. The skill now conducts the conversational credential collection. The user has all credentials ready and provides values for every key.
+A user runs `masks add-role consulting --interactive`. The directory has been created, `.env.example` copied to `consulting/.env`, default keys seeded, and hooks installed. The skill now conducts the conversational credential collection. The user has all credentials ready and provides values for every key.
 
 Questions the proposal must answer:
 - Does the skill ask about every key in `.env.example`, one at a time?

@@ -78,15 +78,27 @@ def doctor_cmd(json_out: bool = typer.Option(False, "--json", help="Emit machine
 
     # 2 role_env
     roles = list(iter_role_dirs(base))
-    missing_env = [r.name for r in roles if not (r / ".env").is_file()]
-    empty_env = [r.name for r in roles if (r / ".env").is_file() and not _has_env_entries(r / ".env")]
-    ok2 = not missing_env and not empty_env
-    parts: list[str] = []
-    if missing_env:
-        parts.append(f"missing .env: {', '.join(missing_env)}")
-    if empty_env:
-        parts.append(f"empty .env: {', '.join(empty_env)}")
-    msg2 = "all roles have non-empty .env" if ok2 else "; ".join(parts)
+    base_env = base / ".env"
+    base_has_entries = _has_env_entries(base_env)
+    missing_or_empty_role_env = [
+        r.name for r in roles if (not (r / ".env").is_file()) or (not _has_env_entries(r / ".env"))
+    ]
+    if base_has_entries:
+        ok2 = True
+        if missing_or_empty_role_env:
+            msg2 = (
+                "base .env provides shared config; role .env optional/missing for: "
+                + ", ".join(missing_or_empty_role_env)
+            )
+        else:
+            msg2 = "base .env and all role .env files have entries"
+    else:
+        ok2 = not missing_or_empty_role_env
+        msg2 = (
+            "base .env empty/missing and role .env missing/empty: " + ", ".join(missing_or_empty_role_env)
+            if missing_or_empty_role_env
+            else "all role .env files have entries"
+        )
     add("role_env", ok2, msg2)
 
     # 3 git_remote

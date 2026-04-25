@@ -22,7 +22,26 @@ def _touch_index(path: Path) -> str:
     return "CREATED"
 
 
-def _ensure_role_scaffold(base: Path, role: str, fw: Path) -> None:
+def _ensure_role_env_defaults(base: Path, role: str, role_env: Path) -> None:
+    from masks.env_util import apply_env_file
+
+    existing: dict[str, str] = {}
+    apply_env_file(role_env, existing)
+
+    if not existing.get("MASKS_BASE", "").strip():
+        merge_env_file(role_env, "MASKS_BASE", str(base))
+        typer.echo(f"  MASKS_BASE: defaulted to {base}")
+
+    # Role-scoped default account labels so first run isn't blank.
+    if role == "personal" and not existing.get("GWS_ACCOUNT_PERSONAL", "").strip():
+        merge_env_file(role_env, "GWS_ACCOUNT_PERSONAL", "personal")
+        typer.echo("  GWS_ACCOUNT_PERSONAL: defaulted to personal")
+    if role == "work" and not existing.get("GWS_ACCOUNT_WORK", "").strip():
+        merge_env_file(role_env, "GWS_ACCOUNT_WORK", "work")
+        typer.echo("  GWS_ACCOUNT_WORK: defaulted to work")
+
+
+def _ensure_role_scaffold(base: Path, role: str, fw: Path, create_role_env: bool = True) -> None:
     role_path = base / role
     role_path.mkdir(parents=True, exist_ok=True)
     role_md = role_path / "ROLE.md"
@@ -81,10 +100,15 @@ def _ensure_role_scaffold(base: Path, role: str, fw: Path) -> None:
 
     env_ex = fw / ".env.example"
     role_env = role_path / ".env"
-    if env_ex.is_file() and not role_env.exists():
-        typer.echo(f"  .env: {copy_with_backup(env_ex, role_env)}")
-    elif role_env.is_file():
-        typer.echo("  .env: EXISTS")
+    if create_role_env:
+        if env_ex.is_file() and not role_env.exists():
+            typer.echo(f"  .env: {copy_with_backup(env_ex, role_env)}")
+        elif role_env.is_file():
+            typer.echo("  .env: EXISTS")
+        if role_env.is_file():
+            _ensure_role_env_defaults(base, role, role_env)
+    else:
+        typer.echo("  .env: SKIPPED (base .env only mode)")
 
     git_dir = role_path / ".git"
     if not git_dir.exists():
@@ -100,7 +124,7 @@ def _ensure_role_scaffold(base: Path, role: str, fw: Path) -> None:
     typer.echo("  hooks: INSTALLED")
 
 
-def setup_command(base: Optional[Path] = None) -> None:
+def setup_command(base: Optional[Path] = None, create_role_env: bool = False) -> None:
     """Create base layout, default roles, copied assets, and hook wiring."""
     fw = resolve_framework_root()
     if base is not None:
@@ -117,7 +141,7 @@ def setup_command(base: Optional[Path] = None) -> None:
 
     for role in DEFAULT_ROLES:
         typer.echo(f"Role {role}:")
-        _ensure_role_scaffold(base_path, role, fw)
+        _ensure_role_scaffold(base_path, role, fw, create_role_env=create_role_env)
 
     base_env = base_path / ".env"
     tpl_root_env = fw / ".env.example"
@@ -142,6 +166,15 @@ def setup_command(base: Optional[Path] = None) -> None:
         from masks.env_util import apply_env_file
         existing = {}
         apply_env_file(base_env, existing)
+        if not existing.get("MASKS_BASE", "").strip():
+            merge_env_file(base_env, "MASKS_BASE", str(base_path))
+            typer.echo(f"MASKS_BASE: defaulted to {base_path}")
         if not existing.get("MCP_MEMORY_DB_PATH", "").strip():
             merge_env_file(base_env, "MCP_MEMORY_DB_PATH", str(db_default))
             typer.echo(f"MCP_MEMORY_DB_PATH: defaulted to {db_default}")
+        if not existing.get("GWS_ACCOUNT_WORK", "").strip():
+            merge_env_file(base_env, "GWS_ACCOUNT_WORK", "work")
+            typer.echo("GWS_ACCOUNT_WORK: defaulted to work")
+        if not existing.get("GWS_ACCOUNT_PERSONAL", "").strip():
+            merge_env_file(base_env, "GWS_ACCOUNT_PERSONAL", "personal")
+            typer.echo("GWS_ACCOUNT_PERSONAL: defaulted to personal")

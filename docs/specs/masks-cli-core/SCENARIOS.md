@@ -16,7 +16,9 @@ Questions the proposal must answer:
 - Does it create `Memory/`, `Reference/`, and `Archive/` inside each, each containing an empty `INDEX.md`?
 - Does it deploy hook scripts to `~/.pirandello/hooks/` and guard scripts to `~/.pirandello/guards/`, sourced from the bundled package data rather than from any checkout path?
 - Does it copy `AGENTS.md` from the bundled package data to `$BASE/AGENTS.md` and to each Role directory?
-- Does it copy `.env.example` to `$BASE/.env`, `personal/.env`, and `work/.env`?
+- Does it copy `.env.example` to `$BASE/.env`?
+- In default mode (`--no-role-env`), does it skip creating `personal/.env` and `work/.env`?
+- In `--role-env` mode, does it create role `.env` files and seed defaults so they are not empty?
 - Does it copy `.gitignore` template to each Role directory?
 - Does it copy `OODA.md` template to each Role directory?
 - Does it run `git init` in each Role directory?
@@ -32,7 +34,8 @@ A user runs `masks setup` on a machine where Pirandello has been installed for t
 
 Questions the proposal must answer:
 - Does the command exit 0 without errors?
-- Does it avoid overwriting existing `.env` files (which contain real credentials)?
+- Does it avoid overwriting existing `.env` files (both base and role, when present, and containing real credentials)?
+- Does it only fill missing default `.env` keys when blank, without replacing non-empty user values?
 - Does it avoid re-copying `.gitignore` and `OODA.md` if they already exist?
 - Does it avoid running `git init` again in an existing git repo?
 - When it updates `AGENTS.md` and hook scripts, does it create a timestamped `.bak` file before overwriting?
@@ -48,7 +51,9 @@ A user has a functioning `personal/` and `work/` Role and now wants to add a con
 
 Questions the proposal must answer:
 - Does `$BASE/consulting/` get created with `Memory/`, `Reference/`, `Archive/`, each containing an empty `INDEX.md`?
-- Is `.env.example` copied to `$BASE/consulting/.env` (only if not already present)?
+- In default mode (`--no-role-env`), is `$BASE/consulting/.env` not created?
+- In `--role-env` (or `--interactive`) mode, is `.env.example` copied to `$BASE/consulting/.env` (only if not already present)?
+- When the new Role `.env` exists, is it seeded with sensible defaults (at minimum `MASKS_BASE`) without overwriting non-empty existing values?
 - Is `.gitignore` template copied to `$BASE/consulting/.gitignore` (only if not already present)?
 - Is `OODA.md` template copied to `$BASE/consulting/OODA.md` (only if not already present)?
 - Is `git init` run in the new directory?
@@ -75,7 +80,7 @@ Metric cross-references: M-05
 
 ### 5. `masks doctor` on a healthy system
 
-A user runs `masks doctor` on a fully configured, connected system. All seven checks should pass or warn green: AGENTS.md copy present and readable, each Role has a non-empty `.env`, all configured remotes are reachable, mcp-memory DB path exists and is set, all OODA.md files are valid, all guard scripts in `~/.pirandello/guards/` are executable, and the always-loaded token budget is within threshold.
+A user runs `masks doctor` on a fully configured, connected system. All seven checks should pass or warn green: AGENTS.md copy present and readable, environment config is available via base `.env` (role `.env` optional) or non-empty role `.env` files, all configured remotes are reachable, mcp-memory DB path exists and is set, all OODA.md files are valid, all guard scripts in `~/.pirandello/guards/` are executable, and the always-loaded token budget is within threshold.
 
 Questions the proposal must answer:
 - Does the command print a clearly labelled pass/warn result for each of the seven checks?
@@ -88,7 +93,7 @@ Metric cross-references: M-06, M-07
 
 ### 6. `masks doctor` with failures
 
-A user runs `masks doctor`. The mcp-memory DB file is missing, one Role's remote is unreachable (network down), one role has an empty `.env`, and one guard script was accidentally made non-executable. Four of the six blocking checks fail; the always-loaded budget check still runs and reports separately.
+A user runs `masks doctor`. The mcp-memory DB file is missing, one Role's remote is unreachable (network down), base `.env` is empty and one role has an empty `.env`, and one guard script was accidentally made non-executable. Four of the six blocking checks fail; the always-loaded budget check still runs and reports separately.
 
 Questions the proposal must answer:
 - Does the command print a clear FAIL result for each of the four failing checks, naming exactly what failed?
@@ -168,12 +173,12 @@ Running `masks setup` twice on a fully initialized system produces no file chang
 Pass: a `diff` of all affected directories before and after the second run shows zero changes; exit code is 0.
 
 **T3 `masks setup` creates every required artifact on a fresh machine.**  
-After the first run, every item in the spec's `masks setup` requirements list exists: directories, `INDEX.md` files, `AGENTS.md` copies (not symlinks) at `$BASE` and in each Role, hook scripts in `~/.pirandello/hooks/`, guard scripts in `~/.pirandello/guards/`, `.env` copies, `.gitignore`, `OODA.md`, and `.cursor/hooks.json` pointing at `~/.pirandello/hooks/`.  
+After the first run, every item in the spec's `masks setup` requirements list exists: directories, `INDEX.md` files, `AGENTS.md` copies (not symlinks) at `$BASE` and in each Role, hook scripts in `~/.pirandello/hooks/`, guard scripts in `~/.pirandello/guards/`, base `.env` (and role `.env` only in `--role-env` mode), `.gitignore`, `OODA.md`, and `.cursor/hooks.json` pointing at `~/.pirandello/hooks/`.  
 Pass: a checklist script enumerating each artifact returns "present" for all items; no item in the checklist is a symlink.
 
 **T4 `masks add-role` creates complete Role structure.**  
-After `masks add-role foo`, `$BASE/foo/` contains: `Memory/INDEX.md`, `Reference/INDEX.md`, `Archive/INDEX.md`, `.env`, `.gitignore`, `OODA.md`, `AGENTS.md`, and `.cursor/hooks.json` referencing `~/.pirandello/hooks/`.  
-Pass: every file in this list exists at the correct path; `.cursor/hooks.json` does not reference any path inside a source checkout or development directory.
+After `masks add-role foo`, `$BASE/foo/` contains: `Memory/INDEX.md`, `Reference/INDEX.md`, `Archive/INDEX.md`, `.gitignore`, `OODA.md`, `AGENTS.md`, and `.cursor/hooks.json` referencing `~/.pirandello/hooks/`.  
+Pass: every file in this list exists at the correct path; `.cursor/hooks.json` does not reference any path inside a source checkout or development directory; role `.env` is absent in default mode and present with default `MASKS_BASE` in `--role-env`/interactive mode.
 
 **T5 `masks sync` on a remoteless Role is a clean skip, not an error.**  
 Running `masks sync` on a single Role with no `origin` remote results in a warning line and exit 0, with no stack trace and no non-zero exit code.  

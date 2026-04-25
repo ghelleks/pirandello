@@ -94,7 +94,7 @@ Cron invokes `masks run work` from a cron environment where `$PWD` is `/root` or
 
 Questions the proposal must answer:
 - Does the runner resolve the role from the CLI argument `work`, not from `$PWD`?
-- Does it construct `$BASE/work/.ooda.log`, `$BASE/work/OODA.md`, and `$BASE/work/.env` from the argument, not the current directory?
+- Does it construct `$BASE/work/.ooda.log` and `$BASE/work/OODA.md` from the argument, and optionally `$BASE/work/.env` if present, not from the current directory?
 - Would a proposal that reads `$PWD` fail this case?
 
 Metric cross-references: M-01, M-02
@@ -123,12 +123,12 @@ Metric cross-references: M-04 (guard order), M-05 (any-pass trigger), M-06 (all-
 ## Stress Tests
 
 **T1 Role resolved from CLI argument, never from `$PWD`.**  
-The runner constructs all paths — OODA.md, .env, .ooda.log — from `$BASE/<role>` where role comes from the positional CLI argument.  
+The runner constructs all paths — OODA.md, optional role .env, .ooda.log — from `$BASE/<role>` where role comes from the positional CLI argument.  
 Pass: running `masks run work` from `/tmp` produces the same behavior as running it from `~/Desktop/work/`.
 
-**T2 `$BASE/.env` is sourced before `$BASE/<role>/.env`.**  
-When the same environment variable is present in both files, the role-level value wins. The runner sources base env first, then role env.  
-Pass: a variable set to `base_value` in `$BASE/.env` and `role_value` in `$BASE/work/.env` resolves as `role_value` during guard execution.
+**T2 `$BASE/.env` is sourced before optional `$BASE/<role>/.env`.**  
+When the same environment variable is present in both files, the role-level value wins. The runner sources base env first, then role env if it exists.  
+Pass: a variable set to `base_value` in `$BASE/.env` and `role_value` in `$BASE/work/.env` resolves as `role_value` during guard execution; if role `.env` is absent, `base_value` is used.
 
 **T3 Guards are executed in OODA.md document order.**  
 The runner executes guards in the exact sequence they appear in the OODA.md file — top-to-bottom across all three phase sections.  

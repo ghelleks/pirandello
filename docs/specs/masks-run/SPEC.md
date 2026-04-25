@@ -12,7 +12,7 @@
 
 1. Entry point: `masks run <role>`. Role is the argument, not derived from `$PWD`.
 2. Base directory is resolved from `MASKS_BASE` environment variable, falling back to `~/Desktop`.
-3. Before any guard execution, sources `$BASE/.env` then `$BASE/<role>/.env` into the environment.
+3. Before any guard execution, sources `$BASE/.env`, then sources `$BASE/<role>/.env` only if present (role env overrides base env when provided).
 4. Reads `$BASE/<role>/OODA.md` to discover the agenda. The agenda lists skills in order under `### Observe`, `### Orient`, and `### Act` sections. Each numbered item is a skill name.
 5. For each skill in the agenda, executes `~/.pirandello/guards/<skill-name>.sh` (deployed there by `masks setup`). Guards are executed in agenda order.
 6. Each guard script must exit 0 if its condition is met (LLM work needed) or non-zero if not (nothing to do). Guard scripts are fast, deterministic, and have zero LLM cost.
@@ -74,7 +74,7 @@ See Static Evaluation Metrics.
 | ID | Name | Pass condition |
 |---|---|---|
 | M-01 | Role from argument | Role resolved from CLI argument, not `$PWD` |
-| M-02 | Env sourcing order | `$BASE/.env` sourced before `$BASE/<role>/.env`; role env overrides base env |
+| M-02 | Env sourcing order | `$BASE/.env` sourced first; `$BASE/<role>/.env` is optional and, when present, overrides base env |
 | M-03 | OODA.md parse | All skill names extracted correctly from numbered agenda items under all three phase headings |
 | M-04 | Guard order | Guards executed in the order they appear in OODA.md |
 | M-05 | Any-pass trigger | A single guard exiting 0 is sufficient to trigger LLM invocation; not all guards need to pass |

@@ -47,9 +47,14 @@ def setup(
         "--base",
         help="Absolute base path for Roles (writes MASKS_BASE into base/.env)",
     ),
+    role_env: bool = typer.Option(
+        False,
+        "--role-env/--no-role-env",
+        help="Create role-local .env files (default: no-role-env, rely on base/.env)",
+    ),
 ) -> None:
     """Scaffold base directory, default roles, hooks, and AGENTS.md."""
-    setup_command(base)
+    setup_command(base, create_role_env=role_env)
 
 
 @app.command("add-role")
@@ -57,9 +62,14 @@ def add_role_cmd(
     name: str = typer.Argument(..., help="Role directory name (kebab-case)"),
     remote: Optional[str] = typer.Option(None, "--remote", help="Git remote URL for origin"),
     interactive: bool = typer.Option(False, "--interactive", "-i"),
+    role_env: bool = typer.Option(
+        False,
+        "--role-env/--no-role-env",
+        help="Create role-local .env file (default: no-role-env, rely on base/.env)",
+    ),
 ) -> None:
     """Create a new Role with hooks and templates."""
-    add_role(name, remote=remote, interactive=interactive)
+    add_role(name, remote=remote, interactive=interactive, create_role_env=role_env)
 
 
 @app.command("sync")

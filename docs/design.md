@@ -101,7 +101,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
 │   ├── AGENTS.md           ← personal-specific tool behavior (optional)
 │   ├── CONTEXT.md          ← personal current focus
 │   ├── OODA.md             ← autonomous loop config and heartbeat agenda (optional; only if role runs OODA) (optional; only if personal role runs OODA)
-│   ├── .env                ← personal role credentials (gitignored)
+│   ├── .env                ← optional personal role overrides (gitignored)
 │   ├── .gitignore          ← ignores .env
 │   ├── Memory/             ← base memory: people, facts, decisions
 │   │   ├── INDEX.md
@@ -120,7 +120,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
     ├── AGENTS.md           ← work-specific tool behavior (optional)
     ├── CONTEXT.md          ← work current focus
     ├── OODA.md             ← autonomous loop config and heartbeat agenda
-    ├── .env                ← work role credentials (gitignored)
+    ├── .env                ← optional work role overrides (gitignored)
     ├── .gitignore          ← ignores .env
     ├── Memory/             ← work-specific memory
     │   ├── INDEX.md
@@ -139,7 +139,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
         └── README.md
 ```
 
-`.env` files are never committed. `.env.example` is bundled inside the installed package and is the canonical template documenting every expected key with empty values. `masks setup` copies it to `[base]/.env` and to each Role directory as `.env`; `masks add-role` copies it to new Role directories. Each Role's `.gitignore` explicitly ignores `.env`.
+`.env` files are never committed. `.env.example` is bundled inside the installed package and is the canonical template documenting every expected key. By default, `masks setup` creates and seeds only `[base]/.env` (`MASKS_BASE`, `MCP_MEMORY_DB_PATH`, and default Google account labels), and role `.env` files are optional overrides. `masks setup --role-env` and `masks add-role --role-env` create role `.env` files from the template and seed role defaults without overwriting non-empty existing values. Each Role's `.gitignore` explicitly ignores `.env`.
 
 **What lives where:**
 
@@ -147,7 +147,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
 | Location      | Contents                                                                                  |
 | ------------- | ----------------------------------------------------------------------------------------- |
 | `[base]/.env` | Cross-role infrastructure: mcp-memory DB path, shared API keys                            |
-| `[role]/.env` | Role-specific credentials: Google account tokens, git remote auth, role-specific API keys |
+| `[role]/.env` | Optional role-specific overrides (takes precedence over base when present) |
 
 
 ### Minimum Role definition
@@ -169,7 +169,7 @@ New Roles follow the same pattern as `work/`. Each gets:
 
 - A directory at `[base]/[role-name]/`
 - A `ROLE.md`
-- Its own credentials in `.env`
+- Optional role-local overrides in `.env` (base `.env` remains primary)
 - A git remote appropriate to the custody of that Role's data (recommended; required for backup and multi-machine sync)
 
 A new Role does not require a separate mcp-memory database, a new AGENTS.md, or new skills unless those are specifically needed.
@@ -635,11 +635,11 @@ masks <command>
 
 ### Commands
 
-`**masks setup [--base PATH]**`
-First-time setup. Deploys hook scripts to `~/.pirandello/hooks/` and guard scripts to `~/.pirandello/guards/` from the bundled package data. Creates the base directory structure, seeds index files, copies `AGENTS.md` from bundled package data to `[base]/AGENTS.md` and each Role directory, copies `.env.example` to `[base]/.env` and to each Role directory as `.env`, copies `.gitignore` template to each Role directory, copies `OODA.md` template into roles, initializes git repos. When re-run, overwrites `AGENTS.md` and hook scripts in-place (creating timestamped `.bak` backups of any prior versions); leaves `.env`, `.gitignore`, and `OODA.md` untouched. Default base: `~/Desktop`.
+`**masks setup [--base PATH] [--role-env|--no-role-env]**`
+First-time setup. Deploys hook scripts to `~/.pirandello/hooks/` and guard scripts to `~/.pirandello/guards/` from the bundled package data. Creates the base directory structure, seeds index files, copies `AGENTS.md` from bundled package data to `[base]/AGENTS.md` and each Role directory, copies `.env.example` to `[base]/.env`, seeds default base `.env` values for first run (`MASKS_BASE`, `MCP_MEMORY_DB_PATH`, and default Google account labels), copies `.gitignore` template to each Role directory, copies `OODA.md` template into roles, initializes git repos. Role `.env` files are optional by default and only created when `--role-env` is passed. When re-run, overwrites `AGENTS.md` and hook scripts in-place (creating timestamped `.bak` backups of any prior versions); leaves `.gitignore` and `OODA.md` untouched and only fills missing default `.env` keys. Default base: `~/Desktop`.
 
-`**masks add-role <name> [--remote URL]**`
-Adds a new Role directory under the base path with the standard reserved structure (`Memory/`, `Reference/`, `Archive/`, `OODA.md`). Copies `.env.example` to `[role]/.env` and `.gitignore` template to `[role]/.gitignore`. Optionally wires a git remote. When run interactively, delegates to the `add-role` skill for the conversational part — asks for each credential by name, explains what it is and where to find it, and writes the values into `[role]/.env` directly so the user never has to edit the file manually. Prompts for signal sources at the same time. Also invokable as a standalone skill from inside a session.
+`**masks add-role <name> [--remote URL] [--role-env|--no-role-env]**`
+Adds a new Role directory under the base path with the standard reserved structure (`Memory/`, `Reference/`, `Archive/`, `OODA.md`). Copies `.gitignore` template to `[role]/.gitignore`. Role `.env` is optional by default; pass `--role-env` to create `[role]/.env` from `.env.example` and seed defaults (`MASKS_BASE`). Interactive mode also creates role `.env` so the add-role skill can collect per-role credentials. Optionally wires a git remote. When run interactively, delegates to the `add-role` skill for the conversational part — asks for each credential by name, explains what it is and where to find it, and writes the values into `[role]/.env` directly so the user never has to edit the file manually. Prompts for signal sources at the same time. Also invokable as a standalone skill from inside a session.
 
 `**masks run <role>**`
 The heartbeat runner. Sources `$BASE/.env` and `[role]/.env`, executes pre-flight guards for every skill in `[role]/OODA.md`, and invokes an LLM session with `OODA.md` as the only injected context if any guard passes. If all guards fail, logs `OODA_OK` and exits — no LLM is started. Designed to be called from cron every 15 minutes. See the Hooks section for crontab entries and the full OODA invocation sequence.
@@ -660,7 +660,7 @@ Runs the `mask-reference-refresh` skill for one Role. If `--role` is omitted, th
 Updates the mcp-memory database for a Role. Without `--rebuild`, diffs `HEAD~1..HEAD` in the Role's `Memory/` directory — evicts stale entries for modified and deleted files, ingests added and modified files. With `--rebuild`, clears all `role:<role>` entries and re-ingests everything from scratch. Called automatically by the post-commit hook; also callable on demand after a lost database or a Role migration. Reads `MCP_MEMORY_DB_PATH` from `[base]/.env`.
 
 `**masks doctor**`
-Checks system health: git remotes reachable, MCP servers responding, role credential files present and non-empty, OODA.md valid against schema, guard scripts executable.
+Checks system health: git remotes reachable, MCP servers responding, environment config available via base `.env` (with optional role `.env` overrides), OODA.md valid against schema, guard scripts executable.
 
 ### CLI commands and skills
 

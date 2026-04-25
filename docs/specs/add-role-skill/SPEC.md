@@ -10,7 +10,7 @@
 
 ### Hard constraints
 
-1. The skill receives a Role name and the path to the Role's `.env` file (pre-created from `.env.example` by `masks add-role`).
+1. The skill receives a Role name and the path to the Role's `.env` file (pre-created from `.env.example` by `masks add-role`, with setup defaults already seeded).
 2. For every key defined in `.env.example`, the skill must:
    - Ask for the value with a plain-language question that names the key and explains what it is and where to find it.
    - Write the provided value to the Role's `.env`.

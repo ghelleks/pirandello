@@ -13,7 +13,7 @@ import typer
 from masks.hooks import install_hooks_for_role
 from masks.paths import resolve_base_path, resolve_framework_root
 from masks.roles import is_role_layout
-from masks.setup_cmd import _ensure_role_scaffold
+from masks.setup_cmd import _ensure_role_env_defaults, _ensure_role_scaffold
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
@@ -22,6 +22,7 @@ def add_role(
     name: str,
     remote: Optional[str] = None,
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Launch interactive credential flow"),
+    create_role_env: bool = typer.Option(False, "--role-env/--no-role-env", help="Create role-local .env file"),
 ) -> None:
     """Add a new Role directory under the base path."""
     if name in ("personal", "work"):
@@ -35,6 +36,14 @@ def add_role(
     role_path = base / name
     if role_path.exists() and is_role_layout(role_path):
         typer.echo(f"Role {name} already initialized; refreshing hooks.")
+        role_env = role_path / ".env"
+        if create_role_env and not role_env.is_file():
+            env_ex = fw / ".env.example"
+            if env_ex.is_file():
+                role_env.write_text(env_ex.read_text(encoding="utf-8"), encoding="utf-8")
+                typer.echo("  .env: CREATED")
+        if role_env.is_file():
+            _ensure_role_env_defaults(base, name, role_env)
         install_hooks_for_role(role_path, fw)
         raise typer.Exit(0)
     if role_path.exists():
@@ -42,7 +51,8 @@ def add_role(
         raise typer.Exit(2)
     role_path.mkdir(parents=True, exist_ok=True)
     typer.echo(f"Scaffolding role {name}:")
-    _ensure_role_scaffold(base, name, fw)
+    scaffold_role_env = create_role_env or interactive
+    _ensure_role_scaffold(base, name, fw, create_role_env=scaffold_role_env)
     if remote:
         r = subprocess.run(
             ["git", "-C", str(role_path), "remote", "get-url", "origin"],

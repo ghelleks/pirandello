@@ -12,7 +12,7 @@
 
 1. Entry point: `masks reflect [role]`. `role` defaults to `personal` if not provided; this argument is passed to the `reflect` skill to scope Memory/ scanning if desired, but the PR always targets the `personal/` remote.
 2. Base directory resolved from `MASKS_BASE` environment variable, falling back to `~/Desktop`.
-3. Before any operations, sources `$BASE/.env` then `$BASE/personal/.env`.
+3. Before any operations, sources `$BASE/.env`, then sources `$BASE/personal/.env` only if present (personal env overrides base env when provided).
 4. Invokes the `reflect` skill with the paths it needs to read Memory/ content. The skill returns a structured result containing:
    - `patterns_found`: boolean
    - `proposed_diff`: the exact unified diff to apply to `personal/SELF.md`
@@ -83,6 +83,6 @@ See Static Evaluation Metrics.
 | M-05 | Personal remote required | If `personal/` has no git remote, a warning is logged and the command exits 0 (not an error)                   |
 | M-06 | Branch naming           | The created branch always follows `reflect/YYYY-MM-DD` format                                                   |
 | M-07 | Log always written      | `personal/.reflect.log` gains one new entry on every run — either `REFLECT_OK` or `REFLECT_PR [URL]`            |
-| M-08 | Env sourced             | `$BASE/.env` and `$BASE/personal/.env` are sourced before any operations                                        |
+| M-08 | Env sourced             | `$BASE/.env` is sourced before any operations; `$BASE/personal/.env` is optional and overrides when present    |
 | M-09 | Duplicate branch guard  | If the reflect branch already exists, the command logs a warning and exits 0 without creating a duplicate        |
 | M-10 | PR ID recorded          | The PR URL (and optionally the PR number) is written to `personal/.reflect.log` so that disposition tracking (closed vs. merged) is possible for future reflect runs |
