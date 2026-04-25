@@ -4,20 +4,20 @@ Pirandello is a **file- and git-first** system for AI-assisted memory and config
 
 ## What you get
 
-- A **`masks` CLI** (`cli/`) for setup, health checks, git sync, mcp-memory indexing, and an OODA heartbeat runner.
+- A `**masks` CLI** (`cli/`) for setup, health checks, git sync, mcp-memory indexing, and an OODA heartbeat runner.
 - **Session hooks** (`hooks/`) that pull repos, inject a fixed prompt stack, commit on session end, and re-index memory after commits.
 - **Guard scripts** (`guards/`) used by `masks run` to decide when a scheduled LLM pass is warranted.
 - **Agent skills** (`skills/`) for onboarding, archiving, reference refresh, synthesis, and reflection—see each `SKILL.md`.
 - A **Cursor / VS Code extension** (`extension/`) that bridges the editor’s JSON hook protocol to the shell hooks (optional install).
 
-Full system design: [`docs/design.md`](docs/design.md). Unit specs live under [`docs/specs/`](docs/specs/).
+Full system design: `[docs/design.md](docs/design.md)`. Unit specs live under `[docs/specs/](docs/specs/)`.
 
 ## Requirements
 
 - **Cursor** or **Claude Code** for interactive sessions (hooks target both).
 - **Python 3.10+** and **[uv](https://github.com/astral-sh/uv)** to install the `masks` package from `cli/`.
 - **git** (each Role is its own repository under a configurable base directory).
-- Optional **`gh`** when using GitHub-based `masks reflect` flows.
+- Optional `**gh`** when using GitHub-based `masks reflect` flows.
 
 ## Quick start
 
@@ -29,12 +29,12 @@ Full system design: [`docs/design.md`](docs/design.md). Unit specs live under [`
 
 ## Documentation
 
-- [`docs/design.md`](docs/design.md) — authoritative architecture and custody model.
-- [`docs/specs/`](docs/specs/) — SDD specs per component.
+- `[docs/design.md](docs/design.md)` — authoritative architecture and custody model.
+- `[docs/specs/](docs/specs/)` — SDD specs per component.
 
 ## License
 
-This project is released under the **MIT License**; see [`LICENSE`](LICENSE).
+This project is released under the **MIT License**; see `[LICENSE](LICENSE)`.
 
 ## Disclaimer
 
