@@ -1,0 +1,17 @@
+title: Pirandello
+description: >-
+  File- and git-first memory and configuration for AI-assisted work across
+  multiple Roles, with hooks and a masks CLI.
+url: "https://ghelleks.github.io"
+baseurl: "/pirandello"
+theme: minima
+markdown: kramdown
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - vendor
+  - node_modules

@@ -1,1 +1,14 @@
 transition.md
+
+site/_site/
+site/.sass-cache/
+site/.jekyll-cache/
+site/vendor/bundle/
+site/.bundle/
+
+cli/.venv/
+__pycache__/
+*.pyc
+
+extension/node_modules/
+extension/out/
