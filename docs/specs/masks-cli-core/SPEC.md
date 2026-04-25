@@ -38,7 +38,7 @@
 6. **`masks status`** must: for each Role directory under `$BASE`, print: Role name, last session commit timestamp (from `git log -1 --format='%ci'`), last `OODA_OK` timestamp (last matching line in `.ooda.log`), last git push timestamp (from `git log -1 --format='%ci' origin/main` or equivalent), and any guard failures logged since the last OODA_OK.
 7. **`masks doctor`** must check each of the following and print pass/fail for each:
    - `$BASE/AGENTS.md` exists as a regular file (not a symlink) and is readable.
-   - Each Role has a `.env` file present.
+   - Each Role has a `.env` file present and non-empty (contains at least one parseable `KEY=VALUE` or `KEY=` entry, ignoring comments/blank lines).
    - Each Role's git remote is reachable (if configured): `git ls-remote` returns 0.
    - mcp-memory server is responding: `MCP_MEMORY_DB_PATH` is set and the file exists.
    - Each Role's `OODA.md` is parseable by the same agenda parser used by `masks run`: at least one numbered skill name can be extracted from the `### Observe`, `### Orient`, or `### Act` sections. A file that exists but yields zero extractable skills is flagged as a failure.
@@ -91,7 +91,7 @@ See Static Evaluation Metrics.
 | M-03 | setup creates all structure | After first run, all required dirs, INDEX.md files, copied AGENTS.md, hook scripts in `~/.pirandello/hooks/`, and role hook config files exist; no symlinks are created |
 | M-04 | add-role complete | After `masks add-role foo`, `$BASE/foo/` contains Memory/, Reference/, Archive/, each with INDEX.md, plus .env, .gitignore, OODA.md, AGENTS.md, and installed hooks pointing at `~/.pirandello/hooks/` |
 | M-05 | sync skips remoteless roles | `masks sync` on a Role with no git remote prints a warning and exits 0 (does not error) |
-| M-06 | doctor structured output | `masks doctor` prints a clearly labelled pass/fail/warn line for each of the 7 checks; checks 1–6 are blocking (non-zero exit on failure); check 7 (`always_loaded_budget`) is warn-only and never drives a non-zero exit; the OODA.md check passes only when the agenda parser can extract at least one skill name |
+| M-06 | doctor structured output | `masks doctor` prints a clearly labelled pass/fail/warn line for each of the 7 checks; checks 1–6 are blocking (non-zero exit on failure); check 7 (`always_loaded_budget`) is warn-only and never drives a non-zero exit; the OODA.md check passes only when the agenda parser can extract at least one skill name; the role_env check passes only when each role `.env` is present and non-empty |
 | M-07 | doctor non-zero on failure | `masks doctor` exits non-zero if any check fails |
 | M-08 | Base path resolution | All commands resolve base from `MASKS_BASE` env var, then `~/Desktop`, never hardcode a path |
 | M-09 | Hooks deployed to user dir | After `masks setup`, `~/.pirandello/hooks/` contains start.sh, end.sh, post-commit.sh; `~/.pirandello/guards/` contains all guard scripts; all are executable; role `.cursor/hooks.json` references these paths |

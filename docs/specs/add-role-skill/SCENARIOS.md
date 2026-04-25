@@ -24,7 +24,7 @@ Metric cross-references: M-01, M-02, M-04, M-06, M-08
 
 ### 2. User skips multiple credentials
 
-A user is setting up a new personal board seat Role. Several keys in `.env.example` (e.g., `WORKBOARD_API_KEY`, `FEEDLY_AUTH_TOKEN`) are not relevant for this Role. The user skips them.
+A user is setting up a new personal board seat Role. Several keys in `.env.example` (e.g., `WORKBOARD_API_KEY`, `GITLAB_TOKEN`) are not relevant for this Role. The user skips them.
 
 Questions the proposal must answer:
 - Is each skipped key still written to the `.env` file as an empty value (not omitted)?

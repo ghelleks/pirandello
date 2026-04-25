@@ -23,7 +23,6 @@ Complete **interactive** Role setup after `masks add-role <name>` created direct
 | `GMAIL_REFRESH_TOKEN` | Gmail OAuth refresh token | Run your Google auth helper; skip if this role doesn't use Gmail. |
 | `TODOIST_API_TOKEN` | Todoist API token | Todoist → Settings → Integrations → Developer. |
 | `WORKBOARD_API_KEY` | WorkBoard API key | Skip if this role doesn't use WorkBoard OKRs. |
-| `FEEDLY_AUTH_TOKEN` | Feedly auth token | Skip if this role doesn't monitor RSS via Feedly. |
 | `GITLAB_TOKEN` | GitLab personal access token | Skip if this role doesn't use GitLab automation. |
 | `GITHUB_TOKEN` | GitHub personal access token | Skip if this role doesn't use GitHub APIs or PR automation. |
 

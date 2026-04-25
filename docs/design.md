@@ -457,7 +457,6 @@ Convention: Orient is for synthesizing observations into understanding or decisi
 - Gmail: `gws --account work`
 - Todoist: projects labeled `#work`
 - WorkBoard: primary account
-- Feedly: RHEL-BU folder
 
 **Observations write to:** Memory/ (tag: `work`)
 **Cross-cutting synthesis writes to:** personal/Memory/
@@ -661,7 +660,7 @@ Runs the `mask-reference-refresh` skill for one Role. If `--role` is omitted, th
 Updates the mcp-memory database for a Role. Without `--rebuild`, diffs `HEAD~1..HEAD` in the Role's `Memory/` directory — evicts stale entries for modified and deleted files, ingests added and modified files. With `--rebuild`, clears all `role:<role>` entries and re-ingests everything from scratch. Called automatically by the post-commit hook; also callable on demand after a lost database or a Role migration. Reads `MCP_MEMORY_DB_PATH` from `[base]/.env`.
 
 `**masks doctor**`
-Checks system health: git remotes reachable, MCP servers responding, credential files present, OODA.md valid against schema, guard scripts executable.
+Checks system health: git remotes reachable, MCP servers responding, role credential files present and non-empty, OODA.md valid against schema, guard scripts executable.
 
 ### CLI commands and skills
 

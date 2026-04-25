@@ -28,6 +28,26 @@ def _read_env_key(path: Path, key: str) -> str | None:
     return None
 
 
+def _has_env_entries(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return False
+    for line in lines:
+        raw = line.strip()
+        if not raw or raw.startswith("#"):
+            continue
+        if raw.startswith("export "):
+            raw = raw[7:].strip()
+        if "=" in raw:
+            key = raw.split("=", 1)[0].strip()
+            if key:
+                return True
+    return False
+
+
 def doctor_cmd(json_out: bool = typer.Option(False, "--json", help="Emit machine-readable JSON")) -> None:
     """Run Pirandello health checks."""
     base = resolve_base_path()
@@ -59,8 +79,14 @@ def doctor_cmd(json_out: bool = typer.Option(False, "--json", help="Emit machine
     # 2 role_env
     roles = list(iter_role_dirs(base))
     missing_env = [r.name for r in roles if not (r / ".env").is_file()]
-    ok2 = not missing_env
-    msg2 = "all roles have .env" if ok2 else f"missing .env: {', '.join(missing_env)}"
+    empty_env = [r.name for r in roles if (r / ".env").is_file() and not _has_env_entries(r / ".env")]
+    ok2 = not missing_env and not empty_env
+    parts: list[str] = []
+    if missing_env:
+        parts.append(f"missing .env: {', '.join(missing_env)}")
+    if empty_env:
+        parts.append(f"empty .env: {', '.join(empty_env)}")
+    msg2 = "all roles have non-empty .env" if ok2 else "; ".join(parts)
     add("role_env", ok2, msg2)
 
     # 3 git_remote

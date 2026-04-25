@@ -75,7 +75,7 @@ Metric cross-references: M-05
 
 ### 5. `masks doctor` on a healthy system
 
-A user runs `masks doctor` on a fully configured, connected system. All seven checks should pass or warn green: AGENTS.md copy present and readable, each Role has a `.env`, all configured remotes are reachable, mcp-memory DB path exists and is set, all OODA.md files are valid, all guard scripts in `~/.pirandello/guards/` are executable, and the always-loaded token budget is within threshold.
+A user runs `masks doctor` on a fully configured, connected system. All seven checks should pass or warn green: AGENTS.md copy present and readable, each Role has a non-empty `.env`, all configured remotes are reachable, mcp-memory DB path exists and is set, all OODA.md files are valid, all guard scripts in `~/.pirandello/guards/` are executable, and the always-loaded token budget is within threshold.
 
 Questions the proposal must answer:
 - Does the command print a clearly labelled pass/warn result for each of the seven checks?
@@ -88,10 +88,10 @@ Metric cross-references: M-06, M-07
 
 ### 6. `masks doctor` with failures
 
-A user runs `masks doctor`. The mcp-memory DB file is missing, one Role's remote is unreachable (network down), and one guard script was accidentally made non-executable. Three of the six blocking checks fail; the always-loaded budget check still runs and reports separately.
+A user runs `masks doctor`. The mcp-memory DB file is missing, one Role's remote is unreachable (network down), one role has an empty `.env`, and one guard script was accidentally made non-executable. Four of the six blocking checks fail; the always-loaded budget check still runs and reports separately.
 
 Questions the proposal must answer:
-- Does the command print a clear FAIL result for each of the three failing checks, naming exactly what failed?
+- Does the command print a clear FAIL result for each of the four failing checks, naming exactly what failed?
 - Does it still run all seven checks even when some fail (not abort on first failure)?
 - Does it exit non-zero?
 - Is the passing check output still shown alongside the failures?
