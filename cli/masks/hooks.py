@@ -2,19 +2,71 @@
 
 from __future__ import annotations
 
+import datetime
 import json
-import os
+import shutil
 import stat
 from pathlib import Path
 
 PIRANDELLO_MARKER = "<!-- pirandello-hooks -->"
+_HOOKS_INSTALL_DIR = Path.home() / ".pirandello" / "hooks"
+_GUARDS_INSTALL_DIR = Path.home() / ".pirandello" / "guards"
 
 
-def install_hooks_for_role(role_path: Path, fw: Path) -> None:
-    """Install Cursor hooks, Claude lifecycle snippets, and git post-commit."""
-    start_sh = (fw / "hooks" / "start.sh").resolve()
-    end_sh = (fw / "hooks" / "end.sh").resolve()
-    post_sh = (fw / "hooks" / "post-commit.sh").resolve()
+def copy_with_backup(src: Path, dst: Path) -> str:
+    """Copy *src* to *dst*, backing up *dst* first if it already exists.
+
+    Returns a short status string suitable for CLI output.
+    """
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.exists() or dst.is_symlink():
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup = dst.with_name(dst.name + f".bak.{ts}")
+        if dst.is_symlink():
+            backup.unlink(missing_ok=True)
+            backup.symlink_to(dst.resolve())
+            dst.unlink()
+        else:
+            shutil.copy2(dst, backup)
+        shutil.copy2(src, dst)
+        return f"UPDATED (backup: {backup.name})"
+    shutil.copy2(src, dst)
+    return "CREATED"
+
+
+def deploy_shared_hooks(fw: Path) -> None:
+    """Copy hook and guard scripts from the bundled package data to
+    ``~/.pirandello/hooks/`` and ``~/.pirandello/guards/``.
+
+    These stable user-owned paths are what role-level hook configuration
+    files point at, so they remain valid regardless of where the package
+    was installed from.
+    """
+    _HOOKS_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
+    _GUARDS_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
+
+    for script in (fw / "hooks").glob("*.sh"):
+        dst = _HOOKS_INSTALL_DIR / script.name
+        status = copy_with_backup(script, dst)
+        dst.chmod(dst.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        print(f"  hook {script.name}: {status}")
+
+    for script in (fw / "guards").glob("*.sh"):
+        dst = _GUARDS_INSTALL_DIR / script.name
+        status = copy_with_backup(script, dst)
+        dst.chmod(dst.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        print(f"  guard {script.name}: {status}")
+
+
+def install_hooks_for_role(role_path: Path, fw: Path) -> None:  # noqa: ARG001
+    """Install Cursor hooks, Claude lifecycle snippets, and git post-commit.
+
+    Hook scripts are expected to already be deployed to
+    ``~/.pirandello/hooks/`` by :func:`deploy_shared_hooks`.
+    """
+    start_sh = _HOOKS_INSTALL_DIR / "start.sh"
+    end_sh = _HOOKS_INSTALL_DIR / "end.sh"
+    post_sh = _HOOKS_INSTALL_DIR / "post-commit.sh"
 
     _install_cursor_hooks(role_path, start_sh, end_sh)
     _install_claude_snippets(role_path, start_sh, end_sh)

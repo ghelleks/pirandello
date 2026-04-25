@@ -53,7 +53,7 @@ The nouns used throughout this spec.
 
 **Role** — a context in which a person operates: `personal`, `work`, a board seat, a consulting engagement. Each Role is a directory under the base path, a git repository, and a behavioral delta on top of the shared self-narrative. A remote is recommended for backup and multi-machine sync but not required. A person has at least two Roles: `personal` and one work-like role.
 
-**Base** — the root directory under which all Roles live. Default: `~/Desktop`. Configurable via `masks setup --base`. The base holds the global `AGENTS.md` symlink, the cross-role `.env`, and nothing else — all substantive content lives in Role directories.
+**Base** — the root directory under which all Roles live. Default: `~/Desktop`. Configurable via `masks setup --base`. The base holds a copy of the global `AGENTS.md` (placed there by `masks setup`), the cross-role `.env`, and nothing else — all substantive content lives in Role directories.
 
 **Task Folder** — a working directory inside a Role for a specific piece of work (a proposal, an analysis, an investigation). Named in kebab-case. Contains a `README.md` and whatever artifacts the work produces. Active task folders live directly in the Role directory; completed ones move to `Archive/YYYY-MM/`.
 
@@ -85,7 +85,7 @@ A person wears many masks in life — professional, parent, board member, consul
 
 `**ROLE.md`** — the behavioral delta for a specific context. Required for every Role, including `personal/`. Contains what changes when operating in that role: credentials, tools, communication norms, key relationships, constraints. Like `SELF.md`, `ROLE.md` is a working draft — bootstrapped at role setup, revised by the synthesis pass as patterns accumulate. `SELF.md` is the layer beneath all roles; `ROLE.md` is what each role adds on top of it.
 
-`**AGENTS.md`** — system conventions, in two layers. The global copy lives at `[base]/AGENTS.md`, symlinked from `pirandello`; placing it at the base directory ensures agent runtimes (Cursor, Claude Code) discover it automatically via workspace root traversal for any session rooted anywhere under the base. It defines how the whole system works — the Roles model, file organization, README.md format, progressive disclosure policy, hook behavior, git workflow — and is identical across all Roles, never modified per-Role. An optional Role-local `AGENTS.md` lives in the Role directory and extends the global copy with role-specific tool behavior: which MCP servers are active, which Todoist filters apply, role-specific workflow steps. The global copy is always loaded first; the local one adds on top.
+`**AGENTS.md`** — system conventions, in two layers. The global copy lives at `[base]/AGENTS.md`, copied from the bundled package data by `masks setup`; placing it at the base directory ensures agent runtimes (Cursor, Claude Code) discover it automatically via workspace root traversal for any session rooted anywhere under the base. It defines how the whole system works — the Roles model, file organization, README.md format, progressive disclosure policy, hook behavior, git workflow — and is identical across all Roles, never modified per-Role. An optional Role-local `AGENTS.md` lives in the Role directory and extends the global copy with role-specific tool behavior: which MCP servers are active, which Todoist filters apply, role-specific workflow steps. The global copy is always loaded first; the local one adds on top.
 
 ### Directory layout
 
@@ -93,7 +93,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
 
 ```
 ~/Desktop/                  ← base directory (configurable)
-├── AGENTS.md               ← global system conventions (symlink → pirandello/AGENTS.md)
+├── AGENTS.md               ← global system conventions (copied from package by masks setup)
 ├── .env                    ← cross-role infrastructure credentials (gitignored)
 ├── personal/               ← the core. SELF.md lives here. (→ personal GitHub)
 │   ├── SELF.md             ← working self-narrative (versioned; revised via masks reflect PR)
@@ -139,7 +139,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
         └── README.md
 ```
 
-`.env` files are never committed. `.env.example` in `pirandello` is the canonical template documenting every expected key with empty values. `masks setup` copies it to `[base]/.env` and to each Role directory as `.env`; `masks add-role` copies it to new Role directories. Each Role's `.gitignore` explicitly ignores `.env`.
+`.env` files are never committed. `.env.example` is bundled inside the installed package and is the canonical template documenting every expected key with empty values. `masks setup` copies it to `[base]/.env` and to each Role directory as `.env`; `masks add-role` copies it to new Role directories. Each Role's `.gitignore` explicitly ignores `.env`.
 
 **What lives where:**
 
@@ -536,15 +536,16 @@ The database is maintained by a **post-commit git hook** in each Role directory,
 
 ```bash
 #!/bin/bash
-# pirandello/hooks/post-commit.sh (also used as .git/hooks/post-commit in each Role)
+# ~/.pirandello/hooks/post-commit.sh (also wired as .git/hooks/post-commit in each Role)
 
+REPO="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 CHANGED=$(git diff --name-only HEAD~1 HEAD -- Memory/)
 DELETED=$(git diff --name-status HEAD~1 HEAD -- Memory/ | awk '/^D/{print $2}')
 
 [[ -z "$CHANGED" && -z "$DELETED" ]] && exit 0
 
-BASE=$(dirname "$(git rev-parse --show-toplevel)")
-ROLE=$(basename "$(git rev-parse --show-toplevel)")
+BASE=$(dirname "$REPO")
+ROLE=$(basename "$REPO")
 [[ -f "$BASE/.env" ]] && source "$BASE/.env"
 
 masks index "$ROLE"
@@ -588,34 +589,37 @@ Contains the system — conventions, skills, templates, and the `masks` CLI. No 
 
 ```
 ~/Code/pirandello/
-├── AGENTS.md               ← workspace instructions template
-├── CLAUDE.md               ← OODA / Claude Code instructions template
 ├── .env.example            ← canonical credential template (committed; no secrets)
 ├── .gitignore              ← ignores .env
-├── config/
-│   └── shared.md           ← system conventions: naming, formats, policies
-├── skills/                 ← shared skills (global to all Roles)
+├── hooks/                  ← hook scripts (source of truth; mirrored into cli/masks/_data/)
+│   ├── start.sh
+│   ├── end.sh
+│   └── post-commit.sh
+├── guards/                 ← pre-flight guard scripts (mirrored into cli/masks/_data/)
 ├── templates/
+│   ├── AGENTS.md           ← global conventions template (mirrored into cli/masks/_data/)
 │   ├── OODA.md             ← starter OODA.md; onboarding fills in the blanks
 │   └── .gitignore          ← gitignore template copied to each Role on setup
+├── skills/                 ← shared skills (global to all Roles)
 ├── cli/                    ← the `masks` CLI (Python, managed by uv)
 │   ├── pyproject.toml
 │   └── masks/
 │       ├── __init__.py
-│       ├── setup.py        ← `masks setup`
-│       ├── role.py         ← `masks add-role`, `masks remove-role`
-│       ├── run.py          ← `masks run` (heartbeat runner with pre-flight guards)
-│       ├── reflect.py      ← `masks reflect`
-│       ├── status.py       ← `masks status`
-│       ├── sync.py         ← `masks sync`
-│       ├── index.py        ← `masks index`
-│       └── doctor.py       ← `masks doctor`
+│       ├── _data/          ← bundled framework assets (hooks, guards, templates, AGENTS.md)
+│       ├── setup_cmd.py    ← `masks setup`
+│       ├── role_cmd.py     ← `masks add-role`
+│       ├── run_cmd.py      ← `masks run` (heartbeat runner with pre-flight guards)
+│       ├── reflect_cmd.py  ← `masks reflect`
+│       ├── status_cmd.py   ← `masks status`
+│       ├── sync_cmd.py     ← `masks sync`
+│       ├── index_cmd.py    ← `masks index`
+│       └── doctor_cmd.py   ← `masks doctor`
 └── README.md               ← how to adopt this system
 ```
 
 ### Role directories (private, per-Role remotes)
 
-Each Role is its own git repo. `pirandello` contributes the global `AGENTS.md` — `masks setup` symlinks `[base]/AGENTS.md` → `~/Code/pirandello/AGENTS.md`. Personal content never enters the framework repo.
+Each Role is its own git repo. `masks setup` copies `AGENTS.md` from the bundled package data (`masks/_data/AGENTS.md`) to `[base]/AGENTS.md` and to each Role directory — no symlinks. Personal content never enters the framework repo.
 
 ---
 
@@ -632,7 +636,7 @@ masks <command>
 ### Commands
 
 `**masks setup [--base PATH]**`
-First-time setup. Creates the base directory structure, seeds index files, symlinks `[base]/AGENTS.md` → `~/Code/pirandello/AGENTS.md`, copies `.env.example` to `[base]/.env` and to each Role directory as `.env`, copies `.gitignore` template to each Role directory, copies `OODA.md` template into roles, initializes git repos. Idempotent — safe to re-run. Default base: `~/Desktop`.
+First-time setup. Deploys hook scripts to `~/.pirandello/hooks/` and guard scripts to `~/.pirandello/guards/` from the bundled package data. Creates the base directory structure, seeds index files, copies `AGENTS.md` from bundled package data to `[base]/AGENTS.md` and each Role directory, copies `.env.example` to `[base]/.env` and to each Role directory as `.env`, copies `.gitignore` template to each Role directory, copies `OODA.md` template into roles, initializes git repos. When re-run, overwrites `AGENTS.md` and hook scripts in-place (creating timestamped `.bak` backups of any prior versions); leaves `.env`, `.gitignore`, and `OODA.md` untouched. Default base: `~/Desktop`.
 
 `**masks add-role <name> [--remote URL]**`
 Adds a new Role directory under the base path with the standard reserved structure (`Memory/`, `Reference/`, `Archive/`, `OODA.md`). Copies `.env.example` to `[role]/.env` and `.gitignore` template to `[role]/.gitignore`. Optionally wires a git remote. When run interactively, delegates to the `add-role` skill for the conversational part — asks for each credential by name, explains what it is and where to find it, and writes the values into `[role]/.env` directly so the user never has to edit the file manually. Prompts for signal sources at the same time. Also invokable as a standalone skill from inside a session.
@@ -664,7 +668,7 @@ Checks system health: git remotes reachable, MCP servers responding, credential 
 
 | Command        | Work done                         |
 | -------------- | --------------------------------- |
-| `masks setup`  | File creation, symlinks, git init |
+| `masks setup`  | File creation, hook deployment, git init |
 | `masks sync`   | `git pull` + `git push`           |
 | `masks index`  | Database upsert/evict             |
 | `masks status` | Data aggregation from logs        |
@@ -695,7 +699,7 @@ A Cursor extension is the primary distribution target. When installed from the C
 
 1. Clones `pirandello` to `~/Code/pirandello/` if not already present
 2. Installs `masks` via `uv tool install`
-3. Runs `masks setup` to create the base directory structure, symlink `AGENTS.md`, and seed credential templates
+3. Runs `masks setup` to create the base directory structure, copy `AGENTS.md` from bundled package data, deploy hook scripts, and seed credential templates
 4. Launches the onboarding skill conversationally inside Cursor — the user never sees the file system
 
 The extension also registers the session-start and session-end hooks for any workspace rooted in a Role directory. A user who opens `~/Desktop/work/` in Cursor gets the full hook lifecycle without manual configuration.
@@ -867,7 +871,7 @@ Multi-instance: each machine clones all Roles. Session-start hook pulls. Session
 
 ## Hooks
 
-Hooks wire Pirandello's lifecycle into the agent runtime. `masks setup` installs them for the target runtime. Hook scripts live in `~/Code/pirandello/hooks/` and are referenced from each role directory. They are not role-specific — the role is derived from `$PWD` at runtime.
+Hooks wire Pirandello's lifecycle into the agent runtime. `masks setup` installs them for the target runtime. Hook scripts are bundled inside the installed package at `masks/_data/hooks/` and deployed to `~/.pirandello/hooks/` on first setup — a stable, user-owned location that role configuration files reference. Guard scripts are deployed to `~/.pirandello/guards/`. They are not role-specific — the role is derived from `$PWD` at runtime.
 
 ### Runtime wiring
 
@@ -891,18 +895,24 @@ Runs when an interactive session opens in a role directory. Derives `$BASE` and 
 
 ```bash
 #!/bin/bash
-# pirandello/hooks/start.sh
+# ~/.pirandello/hooks/start.sh  (deployed from masks/_data/hooks/start.sh by masks setup)
 
 BASE=$(dirname "$PWD")   # e.g. ~/Desktop
 ROLE=$(basename "$PWD")  # e.g. work
 
-# Pull this role's repo and personal/ (for latest SELF.md)
-git pull --ff-only 2>/dev/null || true
-git -C "$BASE/personal" pull --ff-only 2>/dev/null || true
+# Bail early if this doesn't look like a Role workspace
+if [[ ! -f "$PWD/ROLE.md" || ! -f "$BASE/personal/SELF.md" || ! -f "$BASE/AGENTS.md" ]]; then
+  echo "Pirandello: workspace does not look like a Role directory. Open the Role directory as the workspace root." >&2
+  exit 0
+fi
 
 # Source credentials — cross-role infrastructure first, then role-specific
 [[ -f "$BASE/.env" ]] && source "$BASE/.env"
 [[ -f .env ]] && source .env
+
+# Pull this role's repo and personal/ (for latest SELF.md)
+git pull --ff-only 2>/dev/null || true
+git -C "$BASE/personal" pull --ff-only 2>/dev/null || true
 
 # Inject context stack
 # AGENTS.md at $BASE/AGENTS.md may be auto-discovered by Cursor via parent-directory
@@ -927,14 +937,13 @@ Runs when an interactive session closes. Same `$PWD`-based role derivation.
 
 ```bash
 #!/bin/bash
-# pirandello/hooks/end.sh
+# ~/.pirandello/hooks/end.sh  (deployed from masks/_data/hooks/end.sh by masks setup)
 
-BASE=$(dirname "$PWD")
-ROLE=$(basename "$PWD")
-
-cd "$BASE/$ROLE"
-git add -A
-git diff --cached --quiet || git commit -m "session: $(date '+%Y-%m-%d %H:%M')"
+cd "$PWD" 2>/dev/null || exit 0
+git add -A 2>/dev/null || true
+if ! git diff --cached --quiet 2>/dev/null; then
+  git commit -m "session: $(date '+%Y-%m-%d %H:%M')" 2>/dev/null || true
+fi
 git push 2>/dev/null || true
 ```
 
@@ -946,20 +955,23 @@ Runs after the session-end commit. Exits immediately if no `Memory/` files chang
 
 ```bash
 #!/bin/bash
-# pirandello/hooks/post-commit.sh
+# ~/.pirandello/hooks/post-commit.sh  (deployed from masks/_data/hooks/post-commit.sh by masks setup)
+# Also wired as .git/hooks/post-commit in each Role by masks setup.
 
-CHANGED=$(git diff --name-only HEAD~1 HEAD -- Memory/)
-DELETED=$(git diff --name-status HEAD~1 HEAD -- Memory/ | awk '/^D/{print $2}')
+REPO="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$REPO" || exit 0
+if ! git rev-parse HEAD~1 >/dev/null 2>&1; then exit 0; fi   # initial commit: no diff
+
+CHANGED="$(git diff --name-only HEAD~1 HEAD -- Memory/ 2>/dev/null)"
+DELETED="$(git diff --name-status HEAD~1 HEAD -- Memory/ 2>/dev/null | awk '/^D/{print $2}')"
 
 [[ -z "$CHANGED" && -z "$DELETED" ]] && exit 0
 
-BASE=$(dirname "$(git rev-parse --show-toplevel)")
+BASE="$(cd "$(dirname "$REPO")" && pwd 2>/dev/null)"
 [[ -f "$BASE/.env" ]] && source "$BASE/.env"
 
-masks index "$(basename "$(git rev-parse --show-toplevel)")"
+masks index "$(basename "$REPO")" 2>/dev/null || true
 ```
-
-Installed to each Role's `.git/hooks/post-commit` by `masks setup`.
 
 ---
 
@@ -1020,7 +1032,7 @@ This roadmap covers system construction only. Migration of existing content (SEL
 ### Phase 1 — Framework foundation
 
 - Initialize `pirandello` repo at `~/Code/pirandello/`
-- Write global `AGENTS.md` in `pirandello` with conventions from this spec (Roles model, file organization, progressive disclosure policy, pre-flight guard contract); `masks setup` symlinks it to `[base]/AGENTS.md`
+- Write global `AGENTS.md` and bundle it in `cli/masks/_data/`; `masks setup` copies it to `[base]/AGENTS.md` and each Role directory
 - Write `CLAUDE.md` for OODA / Claude Code runtime
 - Write `config/shared.md` with naming conventions and format standards
 - Write `templates/OODA.md` starter template
@@ -1028,7 +1040,7 @@ This roadmap covers system construction only. Migration of existing content (SEL
 
 ### Phase 2 — `masks` CLI
 
-- Build `masks setup` — creates Role directory structure, seeds index files, symlinks framework, copies `.env.example` and `.gitignore` template, copies OODA template, initializes git repos
+- Build `masks setup` — deploys hook and guard scripts from bundled package data to `~/.pirandello/`; creates Role directory structure, seeds index files, copies `AGENTS.md`, copies `.env.example` and `.gitignore` template, copies OODA template, initializes git repos
 - Build `masks add-role` — adds a Role with standard reserved structure
 - Build `masks run` — pre-flight guard runner; owns OODA heartbeat invocation
 - Build `masks sync` — git pull + push for all Roles

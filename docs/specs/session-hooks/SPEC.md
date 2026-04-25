@@ -2,7 +2,7 @@
 
 **Context:** See `docs/spec.md` for full system design. This spec covers the three shell scripts that wire Pirandello's lifecycle into the agent runtime.
 
-**Deliverables:** `hooks/start.sh`, `hooks/end.sh`, `hooks/post-commit.sh` — installed to each Role's workspace by `masks setup`.
+**Deliverables:** `cli/masks/_data/hooks/start.sh`, `cli/masks/_data/hooks/end.sh`, `cli/masks/_data/hooks/post-commit.sh` — bundled inside the installed Python package and deployed to `~/.pirandello/hooks/` by `masks setup`.
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### Hard constraints
 
-1. All three scripts live in `~/Code/pirandello/hooks/`. They are not role-specific; the Role is derived from `$PWD` at runtime.
+1. The canonical source for all three scripts is `cli/masks/_data/hooks/` inside the installed Python package. `masks setup` deploys them to `~/.pirandello/hooks/` — a stable, user-owned location that role hook configuration files reference. They are not role-specific; the Role is derived from `$PWD` at runtime.
 2. Role is always `basename "$PWD"`. Base is always `dirname "$PWD"`. No parameters accepted.
 3. **start.sh** must output the following context items to stdout in the order listed below, each preceded by its exact labelled header. Items are divided into two groups:
 
@@ -34,7 +34,7 @@
 
 ### Soft constraints
 
-- start.sh and end.sh are installed to `.cursor/hooks.json` and `CLAUDE.md` lifecycle sections respectively, in addition to `.git/hooks/` for post-commit. The proposal should address all three installation targets.
+- start.sh and end.sh are referenced by `.cursor/hooks.json` (pointing to `~/.pirandello/hooks/`) and mentioned in `CLAUDE.md` lifecycle sections respectively, in addition to `.git/hooks/post-commit` which delegates to `~/.pirandello/hooks/post-commit.sh`. The proposal should address all three installation targets.
 - Hook scripts should be POSIX-compatible bash (not zsh-specific).
 
 ---

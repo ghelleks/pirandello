@@ -9,34 +9,36 @@
 
 ### 1. First-time setup on a fresh machine
 
-A user has just cloned `pirandello` on a new machine. `~/Desktop` exists but has no Role directories, no `.env`, and no `AGENTS.md` symlink. They run `masks setup` for the first time.
+A user installs the `masks` CLI on a new machine via `uv tool install`. `~/Desktop` exists but has no Role directories, no `.env`, and no `AGENTS.md`. They run `masks setup` for the first time.
 
 Questions the proposal must answer:
 - Does the command create `personal/` and `work/` under `~/Desktop`?
 - Does it create `Memory/`, `Reference/`, and `Archive/` inside each, each containing an empty `INDEX.md`?
-- Does it create the `$BASE/AGENTS.md` symlink pointing to `~/Code/pirandello/AGENTS.md`?
+- Does it deploy hook scripts to `~/.pirandello/hooks/` and guard scripts to `~/.pirandello/guards/`, sourced from the bundled package data rather than from any checkout path?
+- Does it copy `AGENTS.md` from the bundled package data to `$BASE/AGENTS.md` and to each Role directory?
 - Does it copy `.env.example` to `$BASE/.env`, `personal/.env`, and `work/.env`?
 - Does it copy `.gitignore` template to each Role directory?
 - Does it copy `OODA.md` template to each Role directory?
 - Does it run `git init` in each Role directory?
-- Does it install hooks (start, end, post-commit) to each Role directory?
+- Does each Role's `.cursor/hooks.json` reference `~/.pirandello/hooks/start.sh` and `~/.pirandello/hooks/end.sh` — not any path inside a source checkout?
 
-Metric cross-references: M-01, M-02, M-03, M-08
+Metric cross-references: M-01, M-02, M-03, M-08, M-09, M-11
 
 ---
 
 ### 2. Re-running setup on a fully configured machine
 
-A user runs `masks setup` on a machine where Pirandello has been installed for three months. All directories exist, `.env` files are populated with real credentials, the symlink is in place, and hooks are installed.
+A user runs `masks setup` on a machine where Pirandello has been installed for three months. All directories exist, `.env` files are populated with real credentials, `AGENTS.md` copies are in place, and hooks are installed.
 
 Questions the proposal must answer:
-- Does the command exit 0 with no file changes and no errors?
+- Does the command exit 0 without errors?
 - Does it avoid overwriting existing `.env` files (which contain real credentials)?
 - Does it avoid re-copying `.gitignore` and `OODA.md` if they already exist?
 - Does it avoid running `git init` again in an existing git repo?
-- What does the summary output say — does it clearly distinguish "already exists" from "created"?
+- When it updates `AGENTS.md` and hook scripts, does it create a timestamped `.bak` file before overwriting?
+- What does the summary output say — does it clearly distinguish "already exists", "created", and "updated (backup: …)"?
 
-Metric cross-references: M-02, M-03
+Metric cross-references: M-02, M-03, M-10
 
 ---
 
@@ -73,7 +75,7 @@ Metric cross-references: M-05
 
 ### 5. `masks doctor` on a healthy system
 
-A user runs `masks doctor` on a fully configured, connected system. All seven checks should pass or warn green: AGENTS.md symlink valid, each Role has a `.env`, all configured remotes are reachable, mcp-memory DB path exists and is set, all OODA.md files are valid, all guard scripts are executable, and the always-loaded token budget is within threshold.
+A user runs `masks doctor` on a fully configured, connected system. All seven checks should pass or warn green: AGENTS.md copy present and readable, each Role has a `.env`, all configured remotes are reachable, mcp-memory DB path exists and is set, all OODA.md files are valid, all guard scripts in `~/.pirandello/guards/` are executable, and the always-loaded token budget is within threshold.
 
 Questions the proposal must answer:
 - Does the command print a clearly labelled pass/warn result for each of the seven checks?
@@ -150,12 +152,12 @@ Running `masks setup` twice on a fully initialized system produces no file chang
 Pass: a `diff` of all affected directories before and after the second run shows zero changes; exit code is 0.
 
 **T3 `masks setup` creates every required artifact on a fresh machine.**  
-After the first run, every item in the spec's `masks setup` requirements list exists: directories, `INDEX.md` files, symlink, hook files, `.env` copies, `.gitignore`, `OODA.md`.  
-Pass: a checklist script enumerating each artifact returns "present" for all items.
+After the first run, every item in the spec's `masks setup` requirements list exists: directories, `INDEX.md` files, `AGENTS.md` copies (not symlinks) at `$BASE` and in each Role, hook scripts in `~/.pirandello/hooks/`, guard scripts in `~/.pirandello/guards/`, `.env` copies, `.gitignore`, `OODA.md`, and `.cursor/hooks.json` pointing at `~/.pirandello/hooks/`.  
+Pass: a checklist script enumerating each artifact returns "present" for all items; no item in the checklist is a symlink.
 
 **T4 `masks add-role` creates complete Role structure.**  
-After `masks add-role foo`, `$BASE/foo/` contains: `Memory/INDEX.md`, `Reference/INDEX.md`, `Archive/INDEX.md`, `.env`, `.gitignore`, `OODA.md`, and installed hook files.  
-Pass: every file in this list exists at the correct path.
+After `masks add-role foo`, `$BASE/foo/` contains: `Memory/INDEX.md`, `Reference/INDEX.md`, `Archive/INDEX.md`, `.env`, `.gitignore`, `OODA.md`, `AGENTS.md`, and `.cursor/hooks.json` referencing `~/.pirandello/hooks/`.  
+Pass: every file in this list exists at the correct path; `.cursor/hooks.json` does not reference any path inside a source checkout or development directory.
 
 **T5 `masks sync` on a remoteless Role is a clean skip, not an error.**  
 Running `masks sync` on a single Role with no `origin` remote results in a warning line and exit 0, with no stack trace and no non-zero exit code.  
@@ -173,11 +175,25 @@ Pass: `echo $?` after a doctor run with a known failing check returns non-zero.
 No command hardcodes `~/Desktop` or any other path in its source. When `MASKS_BASE=/custom/base` is set in the environment, all commands operate under `/custom/base`.  
 Pass: no literal `~/Desktop` or `$HOME/Desktop` string appears in any command's implementation; all path construction flows through the `MASKS_BASE` resolution logic.
 
+**T9 Framework root always resolves to bundled package data.**  
+`masks.paths.resolve_framework_root()` returns the `_data/` directory inside the installed package, not any path derived from walking the filesystem upward or from a hardcoded development path.  
+Pass: calling `resolve_framework_root()` on a machine where `~/Code/pirandello` does not exist returns a valid path that contains `hooks/start.sh`; the `PIRANDELLO_ROOT` env var overrides the result when set.
+
+**T10 Backup created when setup is re-run over existing files.**  
+Running `masks setup` a second time on a fully configured system, then running it a third time, produces two sets of `.bak.<timestamp>` files for `AGENTS.md` and hook scripts — one per overwrite. `.env`, `.gitignore`, and `OODA.md` are not touched on re-runs.  
+Pass: after two re-runs, the directory contains exactly two `.bak.*` files per overwritable file; the originals are intact and readable.
+
 ---
 
 ## Anti-Pattern Regression Signals
 
 **`masks setup` overwrites existing `.env` files.** The command copies `.env.example` unconditionally, destroying real credentials. Symptom: after re-running `masks setup`, MCP connections fail because credential values have been replaced with empty strings. Indicates: missing file-existence guard on the `.env.example` copy step. Maps to: M-02, M-03.
+
+**Hook scripts point into the source checkout or development directory.** `.cursor/hooks.json` references an absolute path like `~/Code/pirandello/hooks/start.sh` instead of `~/.pirandello/hooks/start.sh`. Symptom: hooks work for developers who have the repo cloned at that path but silently break for any user who installed the tool without cloning the source. Indicates: `resolve_framework_root()` walked the filesystem and found the development checkout rather than using the bundled `_data/` directory. Maps to: M-09, M-11.
+
+**`AGENTS.md` deployed as a symlink.** `masks setup` creates a symlink at `$BASE/AGENTS.md` pointing to the source checkout instead of copying the file. Symptom: users without the source repo cloned get broken symlinks; the file disappears if the checkout is deleted or moved. Indicates: symlink logic not replaced with copy-with-backup. Maps to: M-03, M-10.
+
+**Re-running setup clobbers modified files without backup.** A user who has customized their `AGENTS.md` or local hook scripts runs `masks setup` after an upgrade; the updated files overwrite their changes without any backup. Symptom: user-customized content is silently lost; no recovery path exists. Indicates: copy-with-backup pattern not applied; unconditional overwrite used instead. Maps to: M-10.
 
 **`masks sync` errors on remoteless Role and aborts.** A Role with no remote causes `masks sync` to fail with a non-zero exit and stop processing remaining Roles. Symptom: roles after the remoteless one are never pulled or pushed. Indicates: missing per-Role error isolation in the sync loop. Maps to: M-05.
 

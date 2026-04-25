@@ -14,7 +14,7 @@ A colleague installs the Pirandello Cursor extension from the marketplace on a l
 Questions the proposal must answer:
 - Does the extension clone `pirandello` to `~/Code/pirandello/`?
 - Does it run `uv tool install ~/Code/pirandello/cli/` to install `masks`?
-- Does it run `masks setup` to create the base directory structure, symlink AGENTS.md, and seed credential templates?
+- Does it run `masks setup` to create the base directory structure, copy AGENTS.md from bundled package data, deploy hook scripts to `~/.pirandello/hooks/`, and seed credential templates?
 - Does it launch the `onboarding` skill in Cursor's chat interface?
 - Is progress visible to the user during each step?
 - Does the user never need to open a terminal?

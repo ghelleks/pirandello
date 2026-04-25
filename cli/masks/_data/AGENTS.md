@@ -1,6 +1,6 @@
 # Pirandello — agent conventions
 
-This file is the **global** `AGENTS.md`. It is symlinked from each Role's base directory so any workspace under that base discovers these rules. A Role may add a **local** `AGENTS.md` in the Role directory for tool-specific behavior; global rules always apply first.
+This file is the **global** `AGENTS.md`. It is copied into each Role's base directory so any workspace under that base discovers these rules. A Role may add a **local** `AGENTS.md` in the Role directory for tool-specific behavior; global rules always apply first.
 
 ## Workspace root
 
@@ -31,7 +31,7 @@ Non-interactive automation uses `masks run <role>`, which reads `OODA.md`, runs 
 ## Tools and reliability
 
 - **Infrastructure enforces; instructions guide.** Commits, pushes, and index updates are owned by hooks and the `masks` CLI — not by promises in chat.
-- `**masks` CLI** — Install from this repository's `cli/` with `uv`. Commands include `setup`, `add-role`, `sync`, `status`, `doctor`, `run`, `index`, `reflect` as implemented.
+- **`masks` CLI** — Install from this repository's `cli/` with `uv`. Commands include `setup`, `add-role`, `sync`, `status`, `doctor`, `run`, `index`, `reflect` as implemented.
 - **Credentials** — Never commit `.env` files. Use `.env.example` in this repo as the key catalog only.
 
 ## Size and context discipline
@@ -41,4 +41,4 @@ Non-interactive automation uses `masks run <role>`, which reads `OODA.md`, runs 
 
 ## Further reading
 
-Full system design, custody model, and examples: `**docs/design.md`**.
+Full system design, custody model, and examples: **`docs/design.md`**.

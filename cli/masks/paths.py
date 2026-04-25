@@ -43,14 +43,16 @@ def resolve_base_path() -> Path:
 
 
 def resolve_framework_root() -> Path:
-    """Directory containing AGENTS.md, hooks/, templates/, guards/."""
+    """Directory containing AGENTS.md, hooks/, templates/, guards/.
+
+    Returns the ``_data/`` directory bundled inside the installed package so
+    that hook scripts and templates are always resolved from the installed
+    wheel rather than a development checkout.  Set ``PIRANDELLO_ROOT`` to
+    override (useful for contributors working directly in the source tree).
+    """
     if os.environ.get("PIRANDELLO_ROOT"):
         return Path(os.environ["PIRANDELLO_ROOT"]).expanduser().resolve()
-    here = Path(__file__).resolve().parent
-    for parent in [here, *here.parents]:
-        if (parent / "AGENTS.md").is_file() and (parent / "templates" / "OODA.md").is_file():
-            return parent
-    return Path.home() / "Code" / "pirandello"
+    return Path(__file__).resolve().parent / "_data"
 
 
 def default_memory_db_path() -> Path:

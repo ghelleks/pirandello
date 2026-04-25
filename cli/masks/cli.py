@@ -47,7 +47,7 @@ def setup(
         help="Absolute base path for Roles (writes MASKS_BASE into base/.env)",
     ),
 ) -> None:
-    """Scaffold base directory, default roles, hooks, and AGENTS.md symlink."""
+    """Scaffold base directory, default roles, hooks, and AGENTS.md."""
     setup_command(base)
 
 

@@ -14,7 +14,7 @@
 2. Base directory is resolved from `MASKS_BASE` environment variable, falling back to `~/Desktop`.
 3. Before any guard execution, sources `$BASE/.env` then `$BASE/<role>/.env` into the environment.
 4. Reads `$BASE/<role>/OODA.md` to discover the agenda. The agenda lists skills in order under `### Observe`, `### Orient`, and `### Act` sections. Each numbered item is a skill name.
-5. For each skill in the agenda, executes `~/Code/pirandello/guards/<skill-name>.sh`. Guards are executed in agenda order.
+5. For each skill in the agenda, executes `~/.pirandello/guards/<skill-name>.sh` (deployed there by `masks setup`). Guards are executed in agenda order.
 6. Each guard script must exit 0 if its condition is met (LLM work needed) or non-zero if not (nothing to do). Guard scripts are fast, deterministic, and have zero LLM cost.
 7. If **all** guards exit non-zero: log `OODA_OK [ISO timestamp]` to `$BASE/<role>/.ooda.log` and exit 0. No LLM is invoked.
 8. If **any** guard exits 0: invoke an LLM session with `$BASE/<role>/OODA.md` as the **only** injected context. The full interactive prompt stack (SELF.md, ROLE.md, CONTEXT.md, indexes) is not injected for OODA sessions.

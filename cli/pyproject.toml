@@ -19,3 +19,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["masks"]
+
+[tool.hatch.build.targets.wheel.force-include]
+# Hidden files inside _data/ are excluded by hatchling's default glob rules,
+# so we enumerate them explicitly.
+"masks/_data/.env.example" = "masks/_data/.env.example"
+"masks/_data/templates/.gitignore" = "masks/_data/templates/.gitignore"

@@ -105,7 +105,7 @@ Metric cross-references: M-05
 A user opens `~/Desktop/` in Cursor — the base directory, not a Role directory. `start.sh` fires with `$PWD = ~/Desktop`. `basename "$PWD"` resolves to `Desktop`; `dirname "$PWD"` resolves to `/Users/user`. There is no `ROLE.md` at `~/Desktop/ROLE.md`. `SELF.md` would be sought at `/Users/user/personal/SELF.md` — which does not exist.
 
 Questions the proposal must answer:
-- What does start.sh output? Does it emit `=== GLOBAL AGENTS ===` (the symlink at `~/Desktop/AGENTS.md` exists) but then fail on `=== SELF ===` and `=== ROLE ===` because neither file is at the derived paths?
+- What does start.sh output? Does it emit `=== GLOBAL AGENTS ===` (a copy of `AGENTS.md` placed at `~/Desktop/AGENTS.md` by `masks setup` exists) but then fail on `=== SELF ===` and `=== ROLE ===` because neither file is at the derived paths?
 - Does the proposal define explicit behavior for this failure mode — a warning, an error, or silent partial output?
 - Does end.sh attempt to commit to `~/Desktop/` as a git repo — and what happens when it isn't one?
 - Is there any observable signal to the user that the session is broken?

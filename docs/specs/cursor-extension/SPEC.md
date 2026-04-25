@@ -14,7 +14,7 @@
 2. On first install (fresh machine), the extension must perform the following in order, with visible progress:
    - Clone `https://github.com/[org]/pirandello` to `~/Code/pirandello/` if not already present.
    - Install `masks` via `uv tool install ~/Code/pirandello/cli/`.
-   - Run `masks setup` to create the base directory structure, symlink AGENTS.md, and seed credential templates.
+   - Run `masks setup` to create the base directory structure, copy AGENTS.md from bundled package data, deploy hook scripts, and seed credential templates.
    - Launch the `onboarding` skill conversationally inside Cursor's chat interface.
 3. The extension must be idempotent: if `~/Code/pirandello/` already exists and `masks` is already installed, re-installing or reloading the extension must produce no changes and not re-launch onboarding.
 4. The extension must register session-start and session-end hooks (`.cursor/hooks.json`) for any workspace whose root directory is a valid Role directory. A valid Role directory is defined as: contains `ROLE.md`, is a direct child of the base directory (`$MASKS_BASE` or `~/Desktop`), and is a git repository.
