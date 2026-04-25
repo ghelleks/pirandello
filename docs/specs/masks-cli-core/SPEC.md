@@ -1,8 +1,8 @@
 # SDD Spec: `masks` CLI — Core Commands
 
-**Context:** See `docs/spec.md` for full system design. This spec covers the infrastructure commands of the `masks` CLI: `setup`, `add-role`, `sync`, `status`, and `doctor`. The heartbeat runner (`run`), indexer (`index`), and reflection (`reflect`) are covered in separate specs.
+**Context:** See `docs/spec.md` for full system design. This spec covers the infrastructure commands of the `masks` CLI: `setup`, `add-role`, `sync`, `status`, and `doctor`, plus the thin CLI entrypoint for `reference-refresh`. The heartbeat runner (`run`), indexer (`index`), and reflection (`reflect`) are covered in separate specs.
 
-**Deliverables:** `cli/pyproject.toml`, `cli/masks/__init__.py`, `cli/masks/setup.py`, `cli/masks/role.py`, `cli/masks/sync.py`, `cli/masks/status.py`, `cli/masks/doctor.py`.
+**Deliverables:** `cli/pyproject.toml`, `cli/masks/__init__.py`, `cli/masks/setup.py`, `cli/masks/role.py`, `cli/masks/sync.py`, `cli/masks/status.py`, `cli/masks/doctor.py`, `cli/masks/reference_refresh_cmd.py`.
 
 ---
 
@@ -43,6 +43,14 @@
    - mcp-memory server is responding: `MCP_MEMORY_DB_PATH` is set and the file exists.
    - Each Role's `OODA.md` is parseable by the same agenda parser used by `masks run`: at least one numbered skill name can be extracted from the `### Observe`, `### Orient`, or `### Act` sections. A file that exists but yields zero extractable skills is flagged as a failure.
    - Each Role's pre-flight guard scripts (deployed to `~/.pirandello/guards/`) are executable.
+8. **`masks reference-refresh [--role ROLE] [--non-interactive] [--dry-run]`** must:
+   - Resolve base via the same `MASKS_BASE` logic as all other commands.
+   - Resolve target role from `--role` when provided; otherwise infer role from current working directory under `$BASE` (first path segment under base). If role inference fails, exit non-zero with a clear message requiring `--role`.
+   - Validate that the target Role directory exists and `Reference/INDEX.md` exists before invoking skill execution.
+   - Invoke the `mask-reference-refresh` skill through the configured LLM CLI (`claude -p ...`) with cwd set to the target role directory.
+   - Set `PIRANDELLO_NONINTERACTIVE=1` when `--non-interactive` is passed.
+   - Set `PIRANDELLO_REFERENCE_REFRESH_DRY_RUN=1` and instruct no writes when `--dry-run` is passed.
+   - Exit with the delegated process exit code and perform no direct git operations itself.
 
 ### Soft constraints
 
@@ -61,7 +69,7 @@ Package structure and entry-point wiring. How `uv` manages the package.
 Full directory tree of `cli/` with one-line descriptions per file.
 
 ### 3. Command implementations
-For each command (`setup`, `add-role`, `sync`, `status`, `doctor`): the function signature, the ordered list of operations it performs, and any significant logic decisions (e.g., how idempotency is checked in `setup`).
+For each command (`setup`, `add-role`, `sync`, `status`, `doctor`, `reference-refresh`): the function signature, the ordered list of operations it performs, and any significant logic decisions (e.g., how idempotency is checked in `setup`).
 
 ### 4. Shared utilities
 Any shared code (base path resolution, Role enumeration, hook installation) extracted into a common module.
@@ -89,3 +97,4 @@ See Static Evaluation Metrics.
 | M-09 | Hooks deployed to user dir | After `masks setup`, `~/.pirandello/hooks/` contains start.sh, end.sh, post-commit.sh; `~/.pirandello/guards/` contains all guard scripts; all are executable; role `.cursor/hooks.json` references these paths |
 | M-10 | Copy-with-backup | When `masks setup` overwrites a file that already exists (AGENTS.md, hook scripts), a backup named `<file>.bak.<YYYYMMDD_HHMMSS>` is created in the same directory before the new version is written |
 | M-11 | Framework root from package | `masks.paths.resolve_framework_root()` returns the `_data/` directory bundled inside the installed package; it does not walk the filesystem or hardcode `~/Code/pirandello`; setting `PIRANDELLO_ROOT` overrides |
+| M-12 | reference-refresh entrypoint | `masks reference-refresh` resolves a role via `--role` or workspace inference, validates `Reference/INDEX.md`, supports `--non-interactive` and `--dry-run`, delegates to skill execution, and performs no direct git operations |

@@ -610,6 +610,7 @@ Contains the system — conventions, skills, templates, and the `masks` CLI. No 
 │       ├── role_cmd.py     ← `masks add-role`
 │       ├── run_cmd.py      ← `masks run` (heartbeat runner with pre-flight guards)
 │       ├── reflect_cmd.py  ← `masks reflect`
+│       ├── reference_refresh_cmd.py ← `masks reference-refresh`
 │       ├── status_cmd.py   ← `masks status`
 │       ├── sync_cmd.py     ← `masks sync`
 │       ├── index_cmd.py    ← `masks index`
@@ -653,6 +654,9 @@ Prints a summary of all Roles: last heartbeat, last `OODA_OK`, last git sync, an
 `**masks reflect [role]**`
 Entry point for the synthesis and reflection ritual. Delegates LLM work to the `reflect` skill, which reads `Memory/` files across all Roles (or a specified Role), identifies cross-role patterns accumulated since the last reflection, drafts a `SELF.md` diff, and writes the PR description. `masks reflect` then opens the pull request on the personal GitHub remote. If no meaningful patterns are found, logs `REFLECT_OK` and exits without opening a PR. Designed to be run on demand or on a scheduled cadence (e.g. monthly). The act of merging or closing the PR is the reflection ritual. Also invokable as a standalone skill from inside a session.
 
+`**masks reference-refresh [--role ROLE] [--non-interactive] [--dry-run]**`
+Runs the `mask-reference-refresh` skill for one Role. If `--role` is omitted, the command infers the Role from the current workspace path under `$BASE`; if inference fails, it exits with an explicit error requiring `--role`. `--non-interactive` sets `PIRANDELLO_NONINTERACTIVE=1` for unattended runs (for example, OODA or cron-driven invocations). `--dry-run` plans and reports refresh actions without writing files.
+
 `**masks index <role> [--rebuild]**`
 Updates the mcp-memory database for a Role. Without `--rebuild`, diffs `HEAD~1..HEAD` in the Role's `Memory/` directory — evicts stale entries for modified and deleted files, ingests added and modified files. With `--rebuild`, clears all `role:<role>` entries and re-ingests everything from scratch. Called automatically by the post-commit hook; also callable on demand after a lost database or a Role migration. Reads `MCP_MEMORY_DB_PATH` from `[base]/.env`.
 
@@ -681,6 +685,7 @@ Checks system health: git remotes reachable, MCP servers responding, credential 
 | Command                          | Skill        | What the skill does                                                                                                     |
 | -------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | `masks reflect`                  | `reflect`    | Reads Memory/ files across roles and sessions, identifies cross-role patterns, drafts `SELF.md` diff and PR description |
+| `masks reference-refresh`        | `mask-reference-refresh` | Reads `Reference/INDEX.md`, refreshes Drive-backed reference docs, updates `Refreshed` dates post-write; supports dry-run |
 | `masks add-role` (interactive)   | `add-role`   | Guides credential collection conversationally, explains each key, writes `.env`                                         |
 | `masks setup` (onboarding phase) | `onboarding` | Conversational SELF.md + ROLE.md + OODA.md construction                                                                 |
 

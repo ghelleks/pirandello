@@ -141,6 +141,22 @@ Metric cross-references: M-08 (base path resolution required for status to find 
 
 ---
 
+### 9. `masks reference-refresh` from a Role workspace
+
+A user is in `$BASE/work/strategy-review/` and runs `masks reference-refresh` with no `--role`.
+
+Questions the proposal must answer:
+- Does the command infer the Role as `work` from the workspace path under `$BASE`?
+- Does it validate that `$BASE/work/Reference/INDEX.md` exists before invoking the skill?
+- Does it execute the delegated skill with working directory set to `$BASE/work/`?
+- Does `--dry-run` avoid writes and produce a plan-only run?
+- Does `--non-interactive` set `PIRANDELLO_NONINTERACTIVE=1` for unattended execution?
+- If the current directory is outside `$BASE` and `--role` is omitted, does it fail with a clear message requiring `--role`?
+
+Metric cross-references: M-08, M-12
+
+---
+
 ## Stress Tests
 
 **T1 Package installs and runs without error.**  
@@ -183,6 +199,10 @@ Pass: calling `resolve_framework_root()` on a machine where `~/Code/pirandello` 
 Running `masks setup` a second time on a fully configured system, then running it a third time, produces two sets of `.bak.<timestamp>` files for `AGENTS.md` and hook scripts — one per overwrite. `.env`, `.gitignore`, and `OODA.md` are not touched on re-runs.  
 Pass: after two re-runs, the directory contains exactly two `.bak.*` files per overwritable file; the originals are intact and readable.
 
+**T11 `masks reference-refresh` supports workspace default and dry-run.**  
+Running `masks reference-refresh` from inside a Role subtree infers the Role without requiring `--role`; adding `--dry-run` runs planning mode without mutating files; adding `--non-interactive` sets unattended mode for the delegated skill.
+Pass: command exits successfully when role inference succeeds and emits no file mutations under `--dry-run`; command exits non-zero with a clear error when role inference fails and no `--role` is provided.
+
 ---
 
 ## Anti-Pattern Regression Signals
@@ -202,3 +222,5 @@ Pass: after two re-runs, the directory contains exactly two `.bak.*` files per o
 **Base path hardcoded to `~/Desktop`.** Commands fail when a user configured a custom base via `--base`. Symptom: `masks status` or `masks sync` runs without error but operates on the wrong directory tree. Indicates: `MASKS_BASE` env var not read, fallback logic not implemented. Maps to: M-08.
 
 **`git init` run in existing repo causes error.** `masks setup` on an already-initialized Role runs `git init` again, which may fail or produce unexpected state in some git versions. Symptom: `masks setup` exits non-zero when re-run on an initialized system. Indicates: missing check for existing `.git/` before `git init`. Maps to: M-02.
+
+**`masks reference-refresh` cannot run unless `--role` is always provided.** The command ignores workspace context and fails even when run from inside a Role tree. Symptom: users in `$BASE/work/...` must pass redundant flags and unattended scripts become brittle. Indicates: missing role inference logic from cwd under `$BASE`. Maps to: M-12.

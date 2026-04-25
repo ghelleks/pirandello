@@ -22,7 +22,7 @@ Each buildable unit has its own spec and (forthcoming) scenarios file in `docs/s
 | Unit                      | Spec                                  | What it builds                                  |
 | ------------------------- | ------------------------------------- | ----------------------------------------------- |
 | Session hooks             | `docs/specs/session-hooks/`           | `start.sh`, `end.sh`, `post-commit.sh`          |
-| `masks` CLI core          | `docs/specs/masks-cli-core/`          | `setup`, `add-role`, `sync`, `status`, `doctor` |
+| `masks` CLI core          | `docs/specs/masks-cli-core/`          | `setup`, `add-role`, `sync`, `status`, `doctor`, `reference-refresh` entrypoint |
 | `masks run`               | `docs/specs/masks-run/`               | Heartbeat runner + pre-flight guard contract    |
 | `masks index`             | `docs/specs/masks-index/`             | mcp-memory incremental indexer                  |
 | `masks reflect`           | `docs/specs/masks-reflect/`           | CLI PR-opener: branch, commit diff, push, `gh pr create` |

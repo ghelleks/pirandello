@@ -10,6 +10,7 @@ import typer
 from masks import __version__
 from masks.doctor_cmd import doctor_cmd
 from masks.index_cmd import index_main
+from masks.reference_refresh_cmd import reference_refresh_command
 from masks.reflect_cmd import reflect_command
 from masks.role_cmd import add_role
 from masks.run_cmd import run_command
@@ -110,3 +111,13 @@ def reflect(
 ) -> None:
     """Open a reflect PR from strict JSON (see skills/mask-reflect/SKILL.md)."""
     reflect_command(role, dry_run=dry_run, json_file=json_file)
+
+
+@app.command("reference-refresh")
+def reference_refresh(
+    role: Optional[str] = typer.Option(None, "--role", help="Role directory name"),
+    non_interactive: bool = typer.Option(False, "--non-interactive"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Run the mask-reference-refresh skill for one role."""
+    reference_refresh_command(role=role, non_interactive=non_interactive, dry_run=dry_run)
