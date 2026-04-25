@@ -43,7 +43,7 @@ Questions the proposal must answer:
 - Are skipped keys written as empty strings in `work/.env` (not omitted)?
 - Does the skill confirm each skipped key with a human-readable message ("Got it — I've left that blank for now")?
 - Does skipping credentials not block onboarding from progressing to the next key?
-- Are all `.env.example` keys still asked about, even those the user is likely to skip?
+- Are all `templates/role.env.example` keys still asked about, even those the user is likely to skip?
 
 Metric cross-references: M-06, M-07
 
@@ -78,10 +78,10 @@ Metric cross-references: M-01, M-05 (re-onboarding is the idempotency test for t
 
 ### 6. User appears confused about a credential question
 
-During Phase 2, the skill asks about the `GMAIL_REFRESH_TOKEN` key. The user responds "I have no idea what that is."
+During Phase 2, the skill asks about the `GWS_PROFILE` key (the short label used with the **gws** CLI for this Role's Google account). The user responds "I have no idea what that is."
 
 Questions the proposal must answer:
-- Does the skill offer a brief, plain-language example or hint (e.g., "This is the token Google issues after you authorize the app — you'd get it by running the auth setup step") before waiting?
+- Does the skill offer a brief, plain-language example or hint (e.g., "This is the same nickname you chose when you set up the gws tool for Calendar and Gmail — often `work` or `personal`") before waiting?
 - Does it not abandon the question or silently skip the key?
 - Does the explanation avoid technical jargon where possible, or explain jargon terms when unavoidable?
 
@@ -151,9 +151,9 @@ Pass: the skill's output at the conclusion of Phase 1 includes language making c
 After Phase 2 completes, every Role the user named has a `ROLE.md` present, and `personal/ROLE.md` exists regardless of whether the user named `personal` as a Role.  
 Pass: for a user who names one Role (`work`), two `ROLE.md` files exist: `personal/ROLE.md` and `work/ROLE.md`; each is ≤500 tokens; a skill that only produces `ROLE.md` for user-named Roles fails this test.
 
-**T5 Every key in `.env.example` is asked about — none skipped.**  
-Phase 2 asks about every key in `.env.example` for each Role, including keys the user is likely to skip. No key is silently omitted.  
-Pass: the skill asks about as many keys as `.env.example` contains; a skill that skips keys deemed "optional" fails this test.
+**T5 Every key in `templates/role.env.example` is asked about — none skipped.**  
+Phase 2 asks about every key in `templates/role.env.example` for each Role, including keys the user is likely to skip. No key is silently omitted.  
+Pass: the skill asks about as many keys as `templates/role.env.example` contains; a skill that skips keys deemed "optional" fails this test.
 
 **T6 Skipped credential keys written as empty strings in `.env`.**  
 Keys the user declines to provide are written as `KEY_NAME=` (empty value) in the Role's `.env` file, not omitted from the file.  
@@ -187,7 +187,7 @@ Pass: the produced CONTEXT.md, combined with SELF.md and ROLE.md, does not excee
 
 **Questions presented as a list.** The skill asks multiple questions in a single turn ("Tell me your name, your values, and how you like to communicate."). Symptom: user is overwhelmed; answers are rushed and shallow; SELF.md content is thin. Indicates: spec requirement M-10 violated. Maps to: M-10.
 
-**Skipped `.env` keys omitted from the file.** Keys the user doesn't provide are simply not written to `.env`, leaving the file shorter than `.env.example` and causing silent failures when those keys are needed later. Symptom: `masks doctor` reports credential file present, but the tool requiring the skipped key fails with a confusing "variable not set" error. Maps to: M-07.
+**Skipped `.env` keys omitted from the file.** Keys the user doesn't provide are simply not written to `.env`, leaving the file shorter than `templates/role.env.example` and causing silent failures when those keys are needed later. Symptom: `masks doctor` reports credential file present, but the tool requiring the skipped key fails with a confusing "variable not set" error. Maps to: M-07.
 
 **Phase 2 proceeds without Phase 1.** The skill offers to skip `SELF.md` creation ("If you already have a self-narrative, we can skip this.") and goes straight to Role setup. Symptom: SELF.md doesn't exist; every subsequent session injects an empty `=== SELF ===` section. The foundational document is missing. Indicates: phase ordering is not enforced. Maps to: M-01 (phases must not be skipped per spec).
 

@@ -5,6 +5,8 @@
 **Unit spec:** `docs/specs/masks-cli-core/SPEC.md`  
 **Authoritative design:** `docs/design.md`
 
+OODA runner commands (`beckett run`, agenda parsing, guards) are not part of this unit; see `docs/design.md` and the **`beckett`** package.
+
 ---
 
 ## 1. Overview
@@ -19,11 +21,10 @@ The `masks` core CLI is a single Python package under `cli/`, built and installe
 
 `masks setup --base PATH` resolves `PATH` to an absolute path, ensures `$BASE` exists, then **merges** `MASKS_BASE=<absolute>` into `$BASE/.env` (create file from `.env.example` only when missing; if `.env` already exists, upsert the `MASKS_BASE` line without touching other keys). Subsequent commands read the persisted value through step 2 above when the env var is unset.
 
-**Framework root** (Pirandello repo containing `AGENTS.md`, `hooks/`, `templates/`, `guards/`, `.env.example`) resolves via `resolve_framework_root()`:
+**Framework root** (bundled `cli/masks/_data/` containing `AGENTS.md`, `hooks/`, `templates/` including `role.env.example`, `.env.example` — **no** `guards/` or `OODA.md`) resolves via `resolve_framework_root()`:
 
-1. `PIRANDELLO_ROOT` environment variable if set.  
-2. Walk upward from `Path(__file__).resolve().parent` until a directory contains both `AGENTS.md` and `templates/OODA.md` (supports editable installs where `cli/masks/` lives inside the repo).  
-3. Fallback: `Path.home() / "Code" / "pirandello"`.
+1. `PIRANDELLO_ROOT` environment variable if set (absolute path to authoring tree or `_data`).  
+2. Otherwise: `Path(__file__).resolve().parent / "_data"` inside the installed package (wheel-safe; never walk the filesystem to find a dev checkout).
 
 The symlink target for `$BASE/AGENTS.md` is `resolve_framework_root() / "AGENTS.md"` (absolute path stored in the symlink).
 
@@ -43,7 +44,6 @@ cli/
     ├── cli.py                  # Typer app: subcommands setup, add-role, sync, status, doctor
     ├── paths.py                # resolve_base_path, resolve_framework_root, ensure_env_key
     ├── roles.py                # iter_role_dirs, is_role_layout, role_display_name
-    ├── ooda_parse.py           # extract_agenda_skills(OODA.md path) → list[str]; shared with masks run
     ├── hooks.py                # install_hooks_for_role(role_path, framework_root)
     ├── setup_cmd.py            # implementation of masks setup (module name avoids shadowing stdlib setup)
     ├── role_cmd.py             # masks add-role
@@ -74,7 +74,7 @@ cli/
    - Creates each `INDEX.md` if missing as a **zero-byte** file (truly empty).  
    - Copies `templates/.gitignore` → `[role]/.gitignore` **only if** target does not exist.  
    - Copies `templates/OODA.md` → `[role]/OODA.md` **only if** target does not exist.  
-   - Copies `.env.example` → `[role]/.env` **only if** target does not exist.  
+   - Copies `templates/role.env.example` → `[role]/.env` **only if** target does not exist (fallback: `.env.example` if role template missing).  
    - Runs `git init` **only if** `[role]/.git` does not exist.  
    - Calls `install_hooks_for_role(...)`.  
 6. Ensure `$BASE/.env` from `.env.example` **only if** not present (never overwrite).  
@@ -99,7 +99,7 @@ cli/
 4. Else if `role_path` exists but incomplete: exit **2** with “path exists but is not empty / not a role”—no destructive merge.  
 5. `mkdir role_path`.  
 6. Create `Memory/`, `Reference/`, `Archive/` + empty `INDEX.md` in each (same as setup).  
-7. Copy `.env.example`, `.gitignore`, `OODA.md` with same existence guards as setup.  
+7. Copy `templates/role.env.example` (or `.env.example` fallback), `.gitignore`, `OODA.md` with same existence guards as setup.  
 8. `git init` if no `.git`.  
 9. `install_hooks_for_role(role_path, framework_root)`.  
 10. If `--remote URL`: `git -C role_path remote add origin <URL>` if `origin` missing; if `origin` exists with different URL, exit **2** (do not rewrite silently).  
@@ -130,20 +130,13 @@ For each `role_path`:
 
 For each `role_path` in `iter_role_dirs(base)`:
 
-1. **Role name:** directory name (user-facing label only—no full paths in default output; optional `--verbose` may show paths for debugging, default off per soft “no paths” guidance).  
-2. **Last session commit:** run `git -C role_path log -1 --format=%ci`; if empty repo, display `never`.  
-3. **Last OODA_OK:** read `role_path / ".ooda.log"` if exists; scan lines **bottom-up** for first containing `OODA_OK` (substring match per spec “last matching line”); parse ISO timestamp if line format is `OODA_OK [timestamp]` else show raw line timestamp `unknown`. If file missing, `never`.  
-4. **Last push / remote sync time:** determine default remote branch: `git -C role_path symbolic-ref refs/remotes/origin/HEAD 2>/dev/null` or try `origin/main` then `origin/master`; run `git -C role_path log -1 --format=%ci <remote_ref>`; if no upstream, `n/a`.  
-5. **Guard failures since last OODA_OK:** parse `.ooda.log` from the line **after** the last `OODA_OK` to EOF (or entire file if no OODA_OK): collect lines matching case-insensitive `WARN`, `missing guard`, `not executable`, or `non-zero` in guard summary (concrete patterns aligned with `masks run` log format once implemented). Display condensed: `none` or semicolon-separated snippets (max 3 lines, then `+N more`).
+1. **Role name:** directory name (user-facing label; optional `--verbose` for paths).  
+2. **Last session commit:** `git -C role_path log -1 --format=%ci`; empty repo → `never`.  
+3. **Last push / remote sync time:** resolve default remote branch (`origin/HEAD` or `origin/main` / `origin/master`); `git log -1 --format=%ci` on that ref; no upstream → `n/a`.
 
-**Output format:** stable columns with fixed headers for scripting, e.g.:
+OODA / `.ooda.log` columns are **not** part of `masks status`; use **`beckett status`**.
 
-```
-ROLE          LAST_COMMIT           LAST_OODA_OK          LAST_REMOTE_HEAD      GUARD_NOTES
-personal      2026-04-23 12:01:00   2026-04-23 11:45:00   2026-04-23 10:00:00   none
-```
-
-Tab-separated output optional via `--tsv` flag for machines.
+**Output format:** stable columns, e.g. `ROLE`, `LAST_COMMIT`, `LAST_REMOTE_HEAD`. Optional `--tsv` for machines.
 
 ---
 
@@ -151,17 +144,17 @@ Tab-separated output optional via `--tsv` flag for machines.
 
 **Entry:** `doctor_cmd(json: bool)` in `doctor_cmd.py`.
 
-**Runs all six blocking checks** in fixed order; accumulates results; **never** early-exit on first failure. A **seventh** line, `always_loaded_budget`, runs after the six and implements the CLI side of **S-08** (aligned with `docs/SPEC.md` and `docs/plans/system/PLAN.md` §6): same token math as `start.sh`, **WARN-only** — it does **not** contribute to M-07 non-zero exit (combined budget is a warned threshold, not a hard failure).
+**Runs five blocking checks** in fixed order; accumulates results; **never** early-exit on first failure. A **sixth** line, `always_loaded_budget`, runs after the five and implements the CLI side of **S-08**: same token math as `start.sh`, **WARN-only** — it does **not** contribute to M-07 non-zero exit.
 
 | # | Check ID               | Exit impact | Logic |
 |---|------------------------|-------------|-------|
-| 1 | `agents_symlink`       | blocking    | `$BASE/AGENTS.md` exists, `is_symlink`, `readlink` resolves to existing file. |
-| 2 | `role_env`             | blocking    | Every role dir has `.env` file present (non-empty optional). |
+| 1 | `agents_global`        | blocking    | `$BASE/AGENTS.md` exists as a symlink **or** regular file; if symlink, target must resolve to an existing file. |
+| 2 | `role_env`             | blocking    | Every role dir has a `.env` file with at least one non-comment `KEY=value` (or `export KEY=value`) line. |
 | 3 | `git_remote`           | blocking    | For each role with `origin`, run `git ls-remote origin HEAD` with 5s timeout; skip subcheck if no remote (counts as **pass** with note `no remote`); unreachable = **fail** for that role, aggregate fail if any unreachable. |
 | 4 | `mcp_memory_db`        | blocking    | After sourcing `$BASE/.env` via line parser, require `MCP_MEMORY_DB_PATH` set and `Path(path).is_file()`. |
-| 5 | `ooda_agenda`          | blocking    | For each role, `skills = extract_agenda_skills(OODA.md)`; **fail** if file missing OR `len(skills)==0`; **pass** if ≥1 skill name. Uses **identical** parser as `masks run` (`ooda_parse.py`). |
-| 6 | `guards_executable`    | blocking    | For each skill name returned across all roles’ OODA files (union), check `framework_root / "guards" / f"{skill}.sh"` exists and `os.access(X_OK)`; if a role’s OODA references a skill whose guard is missing, record **fail** `missing guards: …`. If `guards/` directory missing, fail check. |
-| 7 | `always_loaded_budget` | **none** (WARN only) | See below. |
+| 5 | `always_loaded_budget` | **none** (WARN only) | See below. |
+
+OODA agenda and guard checks live in **`beckett doctor`**.
 
 #### `always_loaded_budget` (S-08 / combined always-loaded stack)
 
@@ -193,23 +186,19 @@ where `count_tokens` reads each path as **UTF-8** with replacement for invalid b
 
 **Remediation rule:** Let `overage = combined - 1500`. The primary user-facing remediation matches the system metric: **shorten CONTEXT.md by ~N tokens** with **N = overage** (rounded to a whole number). If multiple Roles breach, print a clause per Role. Optionally add one short hint when `CONTEXT.md` is absent or tiny: *"overage is not only CONTEXT.md; curate ROLE.md or SELF.md."*
 
-**Unit metric note:** `docs/specs/masks-cli-core/SPEC.md` M-06 still describes **six** pass/fail checks; treat the seventh line as an **additional** structured row for the combined budget (update the unit spec in a follow-up so M-06 explicitly includes this WARN line or references S-08).
-
-**Full human example (seven lines):**
+**Full human example (six lines):**
 
 ```
-[PASS] agents_symlink: AGENTS.md -> …
+[PASS] agents_global: AGENTS.md -> …
 [PASS] role_env: all N roles have .env
 [FAIL] git_remote: work: ls-remote failed (exit 128)
 [PASS] mcp_memory_db: …
-[PASS] ooda_agenda: all roles parseable
-[FAIL] guards_executable: email-classifier.sh not executable
 [WARN] always_loaded_budget: work: 1720 tokens (budget 1500, 220 over); shorten CONTEXT.md by ~220 tokens — or trim ROLE.md / personal SELF.md if CONTEXT is already minimal
 ```
 
-**JSON output (`--json`):** `{"ok": <bool>, "checks": [...]}` with **seven** objects; statuses `"pass" | "fail" | "warn"` — only checks 1–6 use `"fail"`; `always_loaded_budget` uses `"warn"` or `"pass"` only.
+**JSON output (`--json`):** `{"ok": <bool>, "checks": [...]}` with **six** objects; statuses `"pass" | "fail" | "warn"` — only checks **1–4** use `"fail"`; `always_loaded_budget` uses `"warn"` or `"pass"` only.
 
-**Exit code:** **0** if checks **1–6** all pass; **1** if any of **1–6** fail (M-07). Check **7** never affects exit code (S-08 is warn-only).
+**Exit code:** **0** if checks **1–4** all pass; **1** if any of **1–4** fail (M-07). Check **5** never affects exit code (S-08 is warn-only).
 
 ---
 
@@ -227,15 +216,9 @@ where `count_tokens` reads each path as **UTF-8** with replacement for invalid b
 - `iter_role_dirs(base: Path) -> Iterator[Path]`: non-hidden immediate subdirs of `base` that are directories, excluding names that are clearly not roles (`Archive` none at base—none).  
 - `is_role_layout(p: Path) -> bool`: has `Memory/INDEX.md` and `Reference/INDEX.md` and `Archive/INDEX.md`.
 
-### 4.3 `ooda_parse.py`
+### 4.3 OODA agenda parsing (`beckett`)
 
-- `extract_agenda_skills(ooda_path: Path) -> list[str]`  
-  - Read text UTF-8 with replacement.  
-  - State machine: only lines under headings exactly `### Observe`, `### Orient`, `### Act` (case-sensitive, at line start).  
-  - Within those sections, collect lines matching `^\s*\d+\.\s+([a-z0-9-]+)` (skill slug).  
-  - Stop section at next `###` heading or EOF.  
-  - Return skills in document order, deduplicated preserving first occurrence.  
-  - Malformed files yield empty list (doctor fails; run logs warning—run spec).
+`extract_agenda_skills` and the `OODA.md` state machine live in the **`beckett`** package (`beckett/ooda_parse.py`). `masks` does not ship or import them.
 
 ### 4.4 `hooks.py` — `install_hooks_for_role(role_path: Path, fw: Path)`
 
@@ -261,7 +244,7 @@ Per `docs/specs/session-hooks/SPEC.md` soft constraints:
 | Cursor `hooks.json` schema | Pin to the schema version Pirandello documents in root `AGENTS.md` at implementation time; add a golden-file test fixture. |
 | `masks sync` pull failure | Continue with warning (not silent); push still attempted. Matches “sync all roles” expectation. |
 | `add-role --interactive` without Claude | Respect `MASKS_INTERACTIVE_CMD`; otherwise friendly message—**no** failing exit if automation unavailable (user can run skill manually). |
-| `status` guard note parsing | Tighten regexes once `masks run` log format is frozen; share `LOG_PATTERNS` constant between units. |
+| OODA log diagnostics | Use **`beckett status`** and `beckett` docs for `.ooda.log` patterns. |
 | `doctor` remote check | `git ls-remote origin HEAD` only; SSH agent must be available—timeout prevents hang. |
 | S-08 / hook parity | `token_budget.py` is the single source of truth for counts; `start.sh` shells out to the same module the CLI uses. |
 
@@ -278,8 +261,8 @@ Per `docs/specs/session-hooks/SPEC.md` soft constraints:
 | M-03 | pass | §3.1 lists all required artifacts and symlink |
 | M-04 | pass | §3.2 scaffold + hooks + optional remote |
 | M-05 | pass | §3.3 skip remoteless with WARN, exit 0 |
-| M-06 | pass\* | §3.5 seven labelled lines / seven JSON checks; six blocking pass/fail + `always_loaded_budget` (WARN\|PASS). \*Unit spec text still says “six checks”; update `SPEC.md` / `SCENARIOS.md` to mention the seventh advisory row. |
-| M-07 | pass | §3.5 exit **1** only if any of checks **1–6** fail; `always_loaded_budget` is never a failure |
+| M-06 | pass | §3.5 six labelled lines / six JSON checks; four blocking pass/fail + `always_loaded_budget` (WARN\|PASS). |
+| M-07 | pass | §3.5 exit **1** only if any of checks **1–4** fail; `always_loaded_budget` is never a failure |
 | M-08 | pass | §1 `resolve_base_path`; no `~/Desktop` literal; `MASKS_BASE` persistence |
 
 ### Top-level metrics (`docs/SPEC.md`)
@@ -312,4 +295,4 @@ Per `docs/specs/session-hooks/SPEC.md` soft constraints:
 
 ## Implementation note for Pirandello repo layout
 
-This proposal assumes the following exist **before** or **with** this unit’s merge: `AGENTS.md`, `.env.example`, `templates/.gitignore`, `templates/OODA.md`, `hooks/*.sh`, and `guards/*.sh` as referenced by other specs. The core CLI only **copies**, **symlinks**, and **validates** them—it does not author hook bodies.
+This proposal assumes the following exist **before** or **with** this unit’s merge: `AGENTS.md`, `.env.example`, `templates/role.env.example`, `templates/.gitignore`, `templates/OODA.md`, `hooks/*.sh`, and `guards/*.sh` as referenced by other specs. The core CLI only **copies**, **symlinks**, and **validates** them—it does not author hook bodies.

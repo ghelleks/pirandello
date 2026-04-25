@@ -13,7 +13,6 @@ from masks.index_cmd import index_main
 from masks.reference_refresh_cmd import reference_refresh_command
 from masks.reflect_cmd import reflect_command
 from masks.role_cmd import add_role
-from masks.run_cmd import run_command
 from masks.setup_cmd import setup_command
 from masks.status_cmd import status_cmd
 from masks.sync_cmd import sync_cmd
@@ -82,7 +81,7 @@ def sync(
 
 @app.command("status")
 def status() -> None:
-    """Show last commit and OODA log markers per Role."""
+    """Show last commit and remote head per Role."""
     status_cmd()
 
 
@@ -103,14 +102,6 @@ def index(
     code = index_main(role, rebuild=rebuild)
     if code:
         raise typer.Exit(code)
-
-
-@app.command("run")
-def run(
-    role: str = typer.Argument(..., help="Role directory name"),
-) -> None:
-    """Run OODA guards and optionally invoke the heartbeat LLM."""
-    run_command(role)
 
 
 @app.command("reflect")

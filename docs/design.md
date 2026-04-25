@@ -59,7 +59,7 @@ The nouns used throughout this spec.
 
 **Session** — a single interactive conversation with the agent. The intended experience is to open the appropriate Role directory as the workspace root in Cursor or Claude Code — not the base directory, not a subdirectory. The Role directory is the unit of context: hooks fire relative to it, credentials are sourced from it, and the prompt stack is assembled from its contents. Opening the wrong directory means the wrong identity, the wrong tools, and no hook lifecycle. The session-start hook loads context; the session-end hook commits and pushes.
 
-**Heartbeat** — a single OODA loop cycle. Runs every 15 minutes during active hours via `masks run <role>`. Pre-flight guards determine whether an LLM is invoked; most heartbeats are no-ops.
+**Heartbeat** — a single OODA loop cycle (optional). Runs on your schedule via **`beckett run <role-dir>`**. Pre-flight guards determine whether an LLM is invoked; most heartbeats are no-ops.
 
 **Hook** — a shell script that fires at a lifecycle event. Three hooks: session-start (pulls, injects context), session-end (commits, pushes), post-commit (updates mcp-memory index if `Memory/` changed). Hooks are role-agnostic; the Role is derived from `$PWD`.
 
@@ -71,7 +71,7 @@ The nouns used throughout this spec.
 
 **Reference** — foundational documents in `[role]/Reference/`: strategy docs, charters, org context. Larger and more stable than Memory files. Each document opens with a ~500-word summary header; the full body is read only when the summary confirms it is needed.
 
-`**masks`** — the CLI that owns system maintenance: setup, role management, heartbeat execution, git sync, synthesis, database indexing, and health checks. Managed by `uv`; no installation required beyond cloning `pirandello`.
+`**masks`** — the CLI that owns workspace maintenance: setup, role management, git sync, reflection, database indexing, and health checks. Scheduled OODA uses **`beckett`**. Managed by `uv`; no installation required beyond cloning `pirandello`.
 
 ---
 
@@ -100,7 +100,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
 │   ├── ROLE.md             ← personal behavioral delta (required)
 │   ├── AGENTS.md           ← personal-specific tool behavior (optional)
 │   ├── CONTEXT.md          ← personal current focus
-│   ├── OODA.md             ← autonomous loop config and heartbeat agenda (optional; only if role runs OODA) (optional; only if personal role runs OODA)
+│   ├── OODA.md             ← optional; autonomous loop config (`beckett run`)
 │   ├── .env                ← optional personal role overrides (gitignored)
 │   ├── .gitignore          ← ignores .env
 │   ├── Memory/             ← base memory: people, facts, decisions
@@ -119,7 +119,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
     ├── ROLE.md             ← work behavioral delta (required)
     ├── AGENTS.md           ← work-specific tool behavior (optional)
     ├── CONTEXT.md          ← work current focus
-    ├── OODA.md             ← autonomous loop config and heartbeat agenda
+    ├── OODA.md             ← optional; OODA agenda when using `beckett run`
     ├── .env                ← optional work role overrides (gitignored)
     ├── .gitignore          ← ignores .env
     ├── Memory/             ← work-specific memory
@@ -139,16 +139,21 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
         └── README.md
 ```
 
-`.env` files are never committed. `.env.example` is bundled inside the installed package and is the canonical template documenting every expected key. By default, `masks setup` creates and seeds only `[base]/.env` (`MASKS_BASE`, `MCP_MEMORY_DB_PATH`, and default Google account labels), and role `.env` files are optional overrides. `masks setup --role-env` and `masks add-role --role-env` create role `.env` files from the template and seed role defaults without overwriting non-empty existing values. Each Role's `.gitignore` explicitly ignores `.env`.
+`.env` files are never committed. The bundled `.env.example` documents **base** keys only (no Google account labels and no Gmail tokens). Role-local keys—including **`GWS_PROFILE`** for the **gws** CLI—live in `templates/role.env.example`, copied to `[role]/.env` when `--role-env` is used. By default, `masks setup` creates and seeds only `[base]/.env` (`MASKS_BASE`, `MCP_MEMORY_DB_PATH`). Role `.env` files are optional overrides. `masks setup --role-env` and `masks add-role --role-env` create role `.env` from the role template and seed defaults (including `GWS_PROFILE` for the `personal` and `work` roles) without overwriting non-empty existing values. Each Role's `.gitignore` explicitly ignores `.env`.
 
 **What lives where:**
 
 
 | Location      | Contents                                                                                  |
 | ------------- | ----------------------------------------------------------------------------------------- |
-| `[base]/.env` | Cross-role infrastructure: mcp-memory DB path, shared API keys                            |
-| `[role]/.env` | Optional role-specific overrides (takes precedence over base when present) |
+| `[base]/.env` | Cross-role infrastructure: mcp-memory DB path, shared API keys (Todoist, GitLab, etc.)   |
+| `[role]/.env` | Optional role-specific overrides (takes precedence over base when present), including **`GWS_PROFILE`** for Google Calendar/Mail via **gws** |
 
+### Google Workspace (`gws` CLI)
+
+Pirandello **depends on the external `gws` CLI** for Calendar and Gmail in interactive sessions and skills that call `gws`. Install `gws`, complete its OAuth/login flow for each Google account you use, and give each account a **short profile label** (for example `work` and `personal`).
+
+Each Role sets **`GWS_PROFILE`** in that Role's `.env` to the label `gws` expects for `--account`. **There is no `GMAIL_REFRESH_TOKEN` (or any Google OAuth secret) in Pirandello `.env` files** — refresh tokens and credentials are stored only in **gws**'s own configuration directories, keyed by profile. The same `GWS_PROFILE` convention applies in scheduled OODA (`beckett run`) and interactive sessions.
 
 ### Minimum Role definition
 
@@ -366,130 +371,11 @@ If `SELF.md` or `ROLE.md` grows beyond ~500 tokens, it needs curation, not expan
 
 ---
 
-## OODA
+## OODA (scheduled automation)
 
-Each Role with autonomous operation gets an `OODA.md`. It is the complete specification for that Role's background loop: what signals to watch, what agents to run, and when to run them. The agents stay generic; the Role supplies the configuration.
+Non-interactive OODA (guards, `.ooda.log`, heartbeat LLM with `OODA.md`-only context) runs under **`beckett run`**. Add `OODA.md` to any Role that should run a background loop (use the `OODA.md` template from the `beckett` install), and schedule **`beckett run`** with a **path to the Role directory**. Contract and examples: `beckett` package `docs/design.md` and `docs/specs/beckett-run/SPEC.md`.
 
-The loop runs on a single cadence — every 15 minutes during active hours. There is no separate "scheduled jobs" concept. Skills that should only run at a specific time (e.g. `daily-briefer` at 06:45) self-guard on the clock: the pre-flight runner checks the condition before invoking any LLM.
-
-### The pre-flight guard layer
-
-Every heartbeat cycle runs a lightweight shell pre-flight before starting any LLM session. Guards are CLI invocations — fast, deterministic, zero LLM cost. If all guards fail (nothing to do), the runner logs `OODA_OK` and exits. No LLM is started.
-
-Guard conditions are defined per skill in the framework, not in `OODA.md`. Examples:
-
-- `ooda-observe`: are there any unread items across signal sources? (cheap API count calls)
-- `email-classifier`: is work Gmail unread count > 0?
-- `daily-briefer`: is current time within 15 min of 06:45 and not already run today?
-- `ooda-act`: are there any Todoist items labeled `agent` or `decision`?
-
-Guard logic never appears in `OODA.md`. A reader of `OODA.md` sees only what runs and in what order.
-
-### Write routing
-
-Observation destination follows the tool that produced the signal:
-
-- **Work-scoped tools** (work Gmail, work Calendar, WorkBoard, work Todoist projects) → write to `work/Memory/`
-- **Personal-scoped tools** (personal Gmail, personal Calendar, personal Todoist projects) → write to `personal/Memory/`
-- **Cross-cutting synthesis** (patterns spanning both contexts) → write to `personal/Memory/`
-
-### The synthesis pass
-
-`ooda-orient-synthesis` is the one agent that reads across all Roles' `Memory/` files and writes cross-cutting patterns to `personal/Memory/`. It runs once weekly from `personal/` as its workspace root, self-guarding on the day of week. It is the deliberate exercise of the global-read rule. Because it requires access to all Roles' memory and writes back to `personal/Memory/`, it lives in `personal/OODA.md` — not in any work or other Role's OODA.
-
-### `OODA.md` standard
-
-```markdown
-# OODA — [role-name]
-
-**Active hours:** HH:MM–HH:MM TZ, weekdays
-
----
-
-## Signal Sources
-
-- Calendar: `gws --account [account]`
-- Gmail: `gws --account [account]`
-- Todoist: projects labeled `#[role]`
-- [additional sources]
-
-**Observations write to:** Memory/ (tag: `[role]`)
-**Cross-cutting synthesis writes to:** personal/Memory/
-
----
-
-## Agenda
-
-Runs every 15 minutes during active hours.
-Pre-flight guards run before any LLM is invoked — if all fail, logs OODA_OK and exits.
-
-### Observe
-1. `ooda-observe`
-
-### Orient
-2. [orient skills in order — synthesis and classification only]
-
-### Act
-3. `ooda-act`
-4. [scheduled housekeeping tasks: reference-refresh, meeting-summary, etc.]
-
-Convention: Orient is for synthesizing observations into understanding or decisions. Scheduled maintenance tasks that fetch, refresh, or output content — even if they run on a time guard — belong in Act.
-
----
-
-## Excluded
-
-- [signal sources this Role's loop must not touch]
-```
-
-### Example: `work/OODA.md`
-
-```markdown
-# OODA — work
-
-**Active hours:** 07:00–19:00 ET, weekdays
-
----
-
-## Signal Sources
-
-- Calendar: `gws --account work`
-- Gmail: `gws --account work`
-- Todoist: projects labeled `#work`
-- WorkBoard: primary account
-
-**Observations write to:** Memory/ (tag: `work`)
-**Cross-cutting synthesis writes to:** personal/Memory/
-
----
-
-## Agenda
-
-Runs every 15 minutes during active hours.
-Pre-flight guards run before any LLM is invoked — if all fail, logs OODA_OK and exits.
-
-### Observe
-1. `ooda-observe`
-
-### Orient
-2. `email-classifier`
-3. `email-todo-forwarder`
-4. `ooda-orient-meeting-prep`
-5. `ooda-orient-decisions`
-
-### Act
-6. `ooda-act`
-7. `daily-briefer`
-8. `meeting-summary`
-9. `reference-refresh`
-
----
-
-## Excluded
-
-- Personal Gmail, Calendar, Todoist projects
-- Any credential not in .env
-```
+**Write routing** (policy for agents, unchanged): work-scoped observations go to `work/Memory/`; personal-scoped to `personal/Memory/`; cross-cutting synthesis to `personal/Memory/`. The weekly `ooda-orient-synthesis` skill and guard ship with **`beckett`**; see `skills/mask-ooda-orient-synthesis/SKILL.md` in that tree.
 
 ---
 
@@ -510,7 +396,7 @@ Role and scope are captured in the tags of each memory entry. The mcp-memory dat
 **Database search** earns its keep in two scenarios the file approach handles poorly:
 
 1. **Fuzzy / semantic queries.** "What do I know about containerization strategy?" or "Have I worked with anyone at $company?" — the index cannot answer these. The database matches by meaning across potentially hundreds of files.
-2. **OODA orient passes.** Orient agents need context for a decision or meeting prep without knowing which memory files are relevant. The database is a fast first-pass filter before the agent decides what to actually read.
+2. **Headless or broad orient passes.** Agents need context for a decision or meeting prep without knowing which memory files are relevant. The database is a fast first-pass filter before the agent decides what to actually read.
 
 The division: **direct reads when you have a pointer; database search when you don't.**
 
@@ -588,26 +474,24 @@ Contains the system — conventions, skills, templates, and the `masks` CLI. No 
 
 ```
 ~/Code/pirandello/
-├── .env.example            ← canonical credential template (committed; no secrets)
+├── .env.example            ← base `[base]/.env` key template (committed; no secrets)
 ├── .gitignore              ← ignores .env
 ├── hooks/                  ← hook scripts (source of truth; mirrored into cli/masks/_data/)
 │   ├── start.sh
 │   ├── end.sh
 │   └── post-commit.sh
-├── guards/                 ← pre-flight guard scripts (mirrored into cli/masks/_data/)
 ├── templates/
 │   ├── AGENTS.md           ← global conventions template (mirrored into cli/masks/_data/)
-│   ├── OODA.md             ← starter OODA.md; onboarding fills in the blanks
+│   ├── role.env.example    ← per-role `.env` template (see above)
 │   └── .gitignore          ← gitignore template copied to each Role on setup
 ├── skills/                 ← shared skills (global to all Roles)
 ├── cli/                    ← the `masks` CLI (Python, managed by uv)
 │   ├── pyproject.toml
 │   └── masks/
 │       ├── __init__.py
-│       ├── _data/          ← bundled framework assets (hooks, guards, templates, AGENTS.md)
+│       ├── _data/          ← bundled framework assets (hooks, templates, AGENTS.md)
 │       ├── setup_cmd.py    ← `masks setup`
 │       ├── role_cmd.py     ← `masks add-role`
-│       ├── run_cmd.py      ← `masks run` (heartbeat runner with pre-flight guards)
 │       ├── reflect_cmd.py  ← `masks reflect`
 │       ├── reference_refresh_cmd.py ← `masks reference-refresh`
 │       ├── status_cmd.py   ← `masks status`
@@ -636,31 +520,28 @@ masks <command>
 ### Commands
 
 `**masks setup [--base PATH] [--role-env|--no-role-env]**`
-First-time setup. Deploys hook scripts to `~/.pirandello/hooks/` and guard scripts to `~/.pirandello/guards/` from the bundled package data. Creates the base directory structure, seeds index files, copies `AGENTS.md` from bundled package data to `[base]/AGENTS.md` and each Role directory, copies `.env.example` to `[base]/.env`, seeds default base `.env` values for first run (`MASKS_BASE`, `MCP_MEMORY_DB_PATH`, and default Google account labels), copies `.gitignore` template to each Role directory, copies `OODA.md` template into roles, initializes git repos. Role `.env` files are optional by default and only created when `--role-env` is passed. When re-run, overwrites `AGENTS.md` and hook scripts in-place (creating timestamped `.bak` backups of any prior versions); leaves `.gitignore` and `OODA.md` untouched and only fills missing default `.env` keys. Default base: `~/Desktop`.
+First-time setup. Deploys hook scripts to `~/.pirandello/hooks/` from the bundled package data. Creates the base directory structure, seeds index files, copies `AGENTS.md` from bundled package data to `[base]/AGENTS.md` and each Role directory, copies `.env.example` to `[base]/.env`, seeds default base `.env` values for first run (`MASKS_BASE`, `MCP_MEMORY_DB_PATH`), copies `.gitignore` template to each Role directory, initializes git repos. Role `.env` files are optional by default and only created when `--role-env` is passed (from `templates/role.env.example`, with `GWS_PROFILE` defaulted for `personal` and `work`). When re-run, overwrites `AGENTS.md` and hook scripts in-place (creating timestamped `.bak` backups of any prior versions); leaves `.gitignore` untouched and only fills missing default `.env` keys. Default base: `~/Desktop`. OODA templates and guards ship with **`beckett`**, not the `masks` wheel.
 
 `**masks add-role <name> [--remote URL] [--role-env|--no-role-env]**`
-Adds a new Role directory under the base path with the standard reserved structure (`Memory/`, `Reference/`, `Archive/`, `OODA.md`). Copies `.gitignore` template to `[role]/.gitignore`. Role `.env` is optional by default; pass `--role-env` to create `[role]/.env` from `.env.example` and seed defaults (`MASKS_BASE`). Interactive mode also creates role `.env` so the add-role skill can collect per-role credentials. Optionally wires a git remote. When run interactively, delegates to the `add-role` skill for the conversational part — asks for each credential by name, explains what it is and where to find it, and writes the values into `[role]/.env` directly so the user never has to edit the file manually. Prompts for signal sources at the same time. Also invokable as a standalone skill from inside a session.
-
-`**masks run <role>**`
-The heartbeat runner. Sources `$BASE/.env` and `[role]/.env`, executes pre-flight guards for every skill in `[role]/OODA.md`, and invokes an LLM session with `OODA.md` as the only injected context if any guard passes. If all guards fail, logs `OODA_OK` and exits — no LLM is started. Designed to be called from cron every 15 minutes. See the Hooks section for crontab entries and the full OODA invocation sequence.
+Adds a new Role directory under the base path with the standard reserved structure (`Memory/`, `Reference/`, `Archive/`). Copies `.gitignore` template to `[role]/.gitignore`. Role `.env` is optional by default; pass `--role-env` to create `[role]/.env` from `templates/role.env.example` and seed defaults (`MASKS_BASE`, and `GWS_PROFILE` when the role name is `personal` or `work`). Interactive mode also creates role `.env` so the add-role skill can collect per-role credentials. Optionally wires a git remote. When run interactively, delegates to the `add-role` skill for the conversational part — asks for each credential by name, explains what it is and where to find it, and writes the values into `[role]/.env` directly so the user never has to edit the file manually. Prompts for signal sources at the same time. Also invokable as a standalone skill from inside a session.
 
 `**masks sync [role]**`
 Pulls then pushes all Role repos (or one specified Role). Equivalent to the session-end hook but callable on demand. Safe to run from cron nightly.
 
 `**masks status**`
-Prints a summary of all Roles: last heartbeat, last `OODA_OK`, last git sync, any guard failures.
+Prints a summary of all Roles: last commit time and last known remote `HEAD` timestamp (git-focused).
 
 `**masks reflect [role]**`
 Entry point for the synthesis and reflection ritual. Delegates LLM work to the `reflect` skill, which reads `Memory/` files across all Roles (or a specified Role), identifies cross-role patterns accumulated since the last reflection, drafts a `SELF.md` diff, and writes the PR description. `masks reflect` then opens the pull request on the personal GitHub remote. If no meaningful patterns are found, logs `REFLECT_OK` and exits without opening a PR. Designed to be run on demand or on a scheduled cadence (e.g. monthly). The act of merging or closing the PR is the reflection ritual. Also invokable as a standalone skill from inside a session.
 
 `**masks reference-refresh [--role ROLE] [--non-interactive] [--dry-run]**`
-Runs the `mask-reference-refresh` skill for one Role. If `--role` is omitted, the command infers the Role from the current workspace path under `$BASE`; if inference fails, it exits with an explicit error requiring `--role`. `--non-interactive` sets `PIRANDELLO_NONINTERACTIVE=1` for unattended runs (for example, OODA or cron-driven invocations). `--dry-run` plans and reports refresh actions without writing files.
+Runs the `mask-reference-refresh` skill for one Role. If `--role` is omitted, the command infers the Role from the current workspace path under `$BASE`; if inference fails, it exits with an explicit error requiring `--role`. `--non-interactive` sets `PIRANDELLO_NONINTERACTIVE=1` for unattended runs (for example, cron-driven invocations). `--dry-run` plans and reports refresh actions without writing files.
 
 `**masks index <role> [--rebuild]**`
 Updates the mcp-memory database for a Role. Without `--rebuild`, diffs `HEAD~1..HEAD` in the Role's `Memory/` directory — evicts stale entries for modified and deleted files, ingests added and modified files. With `--rebuild`, clears all `role:<role>` entries and re-ingests everything from scratch. Called automatically by the post-commit hook; also callable on demand after a lost database or a Role migration. Reads `MCP_MEMORY_DB_PATH` from `[base]/.env`.
 
 `**masks doctor**`
-Checks system health: git remotes reachable, MCP servers responding, environment config available via base `.env` (with optional role `.env` overrides), OODA.md valid against schema, guard scripts executable.
+Checks system health: `AGENTS.md` at base (file or symlink to readable target), role `.env` coverage rules, git remotes reachable, mcp-memory database path, always-loaded token budget (warn).
 
 ### CLI commands and skills
 
@@ -750,7 +631,7 @@ For each Role:
 
 1. Name it, create the directory
 2. *"What's the git remote?"* → configures remote, first push
-3. *"What credentials does this Role use?"* → populates the Role's `.env` (already created from `.env.example` by `masks setup`)
+3. *"What credentials does this Role use?"* → populates the Role's `.env` (created from `templates/role.env.example` when `--role-env` was used)
 4. *"What tools are active?"* → configures MCP servers
 5. *"What are you focused on right now?"* → seeds `CONTEXT.md`
 6. *"Who are the key people?"* → seeds `Memory/People/`
@@ -875,7 +756,7 @@ Multi-instance: each machine clones all Roles. Session-start hook pulls. Session
 
 ## Hooks
 
-Hooks wire Pirandello's lifecycle into the agent runtime. `masks setup` installs them for the target runtime. Hook scripts are bundled inside the installed package at `masks/_data/hooks/` and deployed to `~/.pirandello/hooks/` on first setup — a stable, user-owned location that role configuration files reference. Guard scripts are deployed to `~/.pirandello/guards/`. They are not role-specific — the role is derived from `$PWD` at runtime.
+Hooks wire Pirandello's lifecycle into the agent runtime. `masks setup` installs them for the target runtime. Hook scripts are bundled inside the installed package at `masks/_data/hooks/` and deployed to `~/.pirandello/hooks/` on first setup — a stable, user-owned location that role configuration files reference. They are not role-specific — the role is derived from `$PWD` at runtime. OODA guard scripts are installed with **`beckett`**, not copied by `masks setup`.
 
 ### Runtime wiring
 
@@ -884,7 +765,7 @@ Hooks wire Pirandello's lifecycle into the agent runtime. `masks setup` installs
 | ------------------------- | ---------------------------------------------------------------------- | ------------- |
 | Cursor (interactive)      | `.cursor/hooks.json` in the role directory                             | `masks setup` |
 | Claude Code (interactive) | `CLAUDE.md` lifecycle sections in the role directory                   | `masks setup` |
-| OODA (headless)           | `masks run` manages its own invocation; does not use interactive hooks | cron          |
+| OODA (headless)           | **`beckett run`**; does not use interactive hooks                        | cron          |
 
 
 Each role directory is intended to be opened as a separate workspace. Hooks in `.cursor/hooks.json` are workspace-scoped and always know which role they're serving.
@@ -979,22 +860,9 @@ masks index "$(basename "$REPO")" 2>/dev/null || true
 
 ---
 
-### OODA invocation — `masks run`
+### OODA invocation
 
-The OODA start path is entirely distinct from the interactive hooks. `masks run <role>` is called by cron every 15 minutes during active hours. It:
-
-1. Sources `$BASE/.env` and `$ROLE/.env`
-2. Runs the pre-flight guard for every skill listed in `OODA.md`
-3. If all guards fail: logs `OODA_OK` and exits — no LLM invoked
-4. If any guard passes: invokes an LLM session with `**OODA.md` as the only injected context**
-
-`OODA.md` is the sole context for OODA sessions. It lists what to run and in what order; skills load Memory/, Reference/, and Archive/ content via progressive disclosure as needed. The full interactive context stack is not injected.
-
-```
-# crontab entry — $BASE is the configured base directory (e.g. ~/Desktop)
-*/15 * * * 1-5 masks run work     2>> $BASE/work/.ooda.log
-*/15 * * * 1-5 masks run personal 2>> $BASE/personal/.ooda.log
-```
+OODA is started by **`beckett run <path-to-role>`** (or a bare role name under `MASKS_BASE`). See the `beckett` package docs for the full sequence, guard contract, and crontab examples (prefer explicit `$MASKS_BASE` paths in cron).
 
 ---
 
@@ -1022,8 +890,8 @@ The OODA start path is entirely distinct from the interactive hooks. `masks run 
 | Push to remote on session end          | End hook (shell)      | Very high (no-op if no remote configured) |
 | README.md on archive                   | Inside archive skill  | High                                      |
 | Update Archive/INDEX.md                | Inside archive skill  | High                                      |
-| OODA pre-flight guard (no-op exit)     | `masks run` shell     | Very high                                 |
-| OODA context injection (OODA.md only)  | `masks run` shell     | Very high                                 |
+| OODA pre-flight guard (no-op exit)     | `beckett run` shell   | Very high                                 |
+| OODA context injection (OODA.md only)  | `beckett run` shell   | Very high                                 |
 | mcp-memory index updated after write   | Post-commit git hook  | Very high                                 |
 
 
@@ -1037,33 +905,31 @@ This roadmap covers system construction only. Migration of existing content (SEL
 
 - Initialize `pirandello` repo at `~/Code/pirandello/`
 - Write global `AGENTS.md` and bundle it in `cli/masks/_data/`; `masks setup` copies it to `[base]/AGENTS.md` and each Role directory
-- Write `CLAUDE.md` for OODA / Claude Code runtime
+- Write `CLAUDE.md` for Claude Code runtime
 - Write `config/shared.md` with naming conventions and format standards
-- Write `templates/OODA.md` starter template
 - Set up session-start and session-end hooks (Role-aware)
 
 ### Phase 2 — `masks` CLI
 
-- Build `masks setup` — deploys hook and guard scripts from bundled package data to `~/.pirandello/`; creates Role directory structure, seeds index files, copies `AGENTS.md`, copies `.env.example` and `.gitignore` template, copies OODA template, initializes git repos
+- Build `masks setup` — deploys hook scripts to `~/.pirandello/hooks/`; creates Role directory structure, seeds index files, copies `AGENTS.md`, copies `.env.example` to `[base]/.env`, copies `role.env.example` to each Role when `--role-env`, copies `.gitignore` template, initializes git repos
 - Build `masks add-role` — adds a Role with standard reserved structure
-- Build `masks run` — pre-flight guard runner; owns OODA heartbeat invocation
 - Build `masks sync` — git pull + push for all Roles
-- Build `masks status` — last heartbeat, OODA_OK, git sync per Role
-- Build `masks doctor` — checks git remotes, MCPs, credentials, OODA.md schema, guard executability
+- Build `masks status` — git-focused summary per Role
+- Build `masks doctor` — checks base `AGENTS.md`, env, git remotes, memory DB path, token budget
 
 ### Phase 3 — Skills
 
 - Build or update `archive` skill to write `README.md` and append to `Archive/INDEX.md`
 - Build `reference-refresh` skill (Drive export → summary header → `Reference/INDEX.md`)
-- Build `onboarding` skill (conversational SELF.md + ROLE.md + OODA.md setup; frames Phase 1 as "drafting a v0.1", not revealing a truth); invoked by `masks setup` and directly
+- Build `onboarding` skill (conversational SELF.md + ROLE.md setup; optional `OODA.md` for `beckett run`); invoked by `masks setup` and directly
 - Build `reflect` skill (reads Memory/ across Roles, identifies cross-role patterns, drafts SELF.md diff and PR description); invoked by `masks reflect` and directly
 - Build `add-role` skill (conversational credential collection and signal source setup); invoked by `masks add-role --interactive` and directly
-- Write pre-flight guards for all heartbeat agenda skills
+- Pre-flight guards and `beckett run` ship in the **`beckett`** package
 
-### Phase 4 — OODA
+### Phase 4 — OODA (cron)
 
-- Wire `masks run <role>` into cron at 15-minute interval
-- Implement `ooda-orient-synthesis` (weekly cross-Role synthesis pass; feeds `masks reflect`)
+- Wire `beckett run <role-dir>` into cron at 15-minute interval
+- Implement `ooda-orient-synthesis` in **`beckett`** (weekly cross-Role synthesis pass; feeds `masks reflect`)
 - Build `masks reflect` — synthesis pass + PR opener on personal GitHub remote
 - Build `masks index` — incremental mcp-memory updater; called by post-commit hook and on demand with `--rebuild`
 
@@ -1087,7 +953,7 @@ This roadmap covers system construction only. Migration of existing content (SEL
 
 - **Role-specific skills:** How Role-specific skills are loaded depends on the agent runtime (Cursor vs Claude Code vs Hermes). Left open until a specific runtime makes it concrete.
 - **mcp-memory rebuild:** Resolved. Hook-based, incremental. Post-commit git hook calls `masks index <role>`, which diffs `HEAD~1..HEAD` in `Memory/`, evicts stale entries via `delete_by_tag`, and upserts changed files directly via the `mcp_memory_service` Python library. Full rebuild available via `masks index <role> --rebuild`. See "The mcp-memory Database" section.
-- `**OODA_OK` suppression:** `masks run` logs `OODA_OK` to `.ooda.log` and exits silently. Suppression is handled by the runner, not the LLM runtime. No further design needed unless a notification channel is added.
+- **OODA_OK suppression:** `beckett run` logs `OODA_OK` to `.ooda.log` and exits silently. Suppression is handled in the `beckett` runner, not the LLM runtime. No further design needed unless a notification channel is added.
 
 ## See Also
 

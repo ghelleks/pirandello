@@ -24,15 +24,15 @@ Hooks inject context in a fixed order. See `docs/design.md` § "The Prompt Stack
 
 Active task folders live at the Role root (kebab-case). Each should have a `README.md` with title, status, summary, and key sections per `docs/design.md`. Completed work moves to `Archive/YYYY-MM/<folder>/` via the `mask-archive` skill; `Archive/INDEX.md` is updated first, then the folder is moved.
 
-## OODA heartbeat
+## OODA heartbeat (`beckett`)
 
-Non-interactive automation uses `masks run <role>`, which reads `OODA.md`, runs **all** pre-flight guards in agenda order (no early exit), and only invokes an LLM if at least one guard exits **0**. Guard contract: **exit 0 means "work to do"** for that skill; non-zero means skip.
+Non-interactive OODA uses **`beckett run <path-to-role>`**. It reads `OODA.md`, runs pre-flight guards, and may invoke an LLM with OODA-only context. See `docs/design.md` (OODA section) and the `beckett` package docs for setup and cron.
 
 ## Tools and reliability
 
 - **Infrastructure enforces; instructions guide.** Commits, pushes, and index updates are owned by hooks and the `masks` CLI — not by promises in chat.
-- **`masks` CLI** — Install from this repository's `cli/` with `uv`. Commands include `setup`, `add-role`, `sync`, `status`, `doctor`, `run`, `index`, `reflect` as implemented.
-- **Credentials** — Never commit `.env` files. Use `.env.example` in this repo as the key catalog only.
+- **`masks` CLI** — Install from this repository's `cli/` with `uv`. Commands include `setup`, `add-role`, `sync`, `status`, `doctor`, `index`, `reflect`, `reference-refresh` as implemented.
+- **Credentials** — Never commit `.env` files. Base keys: `.env.example`. Per-role keys (including `GWS_PROFILE` for **gws**): `templates/role.env.example`.
 
 ## Size and context discipline
 

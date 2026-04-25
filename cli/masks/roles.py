@@ -21,8 +21,6 @@ def is_role_candidate(p: Path) -> bool:
         return False
     if (p / "ROLE.md").is_file():
         return True
-    if (p / "OODA.md").is_file():
-        return True
     return is_role_layout(p)
 
 

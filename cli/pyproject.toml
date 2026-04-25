@@ -1,7 +1,7 @@
 [project]
 name = "masks"
 version = "0.1.0"
-description = "Pirandello masks CLI — setup, sync, doctor, OODA runner, memory index"
+description = "Pirandello masks CLI — setup, sync, doctor, memory index, reflect"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

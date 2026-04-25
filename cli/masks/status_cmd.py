@@ -1,4 +1,4 @@
-"""``masks status`` — per-role git and OODA summary."""
+"""``masks status`` — per-role git summary."""
 
 from __future__ import annotations
 
@@ -20,17 +20,6 @@ def _last_commit(role_path: Path) -> str:
     if r.returncode != 0 or not r.stdout.strip():
         return "never"
     return r.stdout.strip()
-
-
-def _last_ooda_ok(role_path: Path) -> str:
-    logf = role_path / ".ooda.log"
-    if not logf.is_file():
-        return "never"
-    lines = logf.read_text(encoding="utf-8", errors="replace").splitlines()
-    for line in reversed(lines):
-        if "OODA_OK" in line:
-            return line.strip()[:80]
-    return "never"
 
 
 def _last_remote_head(role_path: Path) -> str:
@@ -65,14 +54,12 @@ def _last_remote_head(role_path: Path) -> str:
 
 def status_cmd() -> None:
     base = resolve_base_path()
-    typer.echo(
-        f"{'ROLE':<12} {'LAST_COMMIT':<22} {'LAST_OODA_OK':<40} {'LAST_REMOTE_HEAD':<22} GUARD_NOTES"
-    )
+    typer.echo(f"{'ROLE':<12} {'LAST_COMMIT':<22} {'LAST_REMOTE_HEAD':<22}")
     for role_path in iter_role_dirs(base):
         name = role_path.name
         if not (role_path / ".git").exists():
-            typer.echo(f"{name:<12} {'n/a':<22} {'n/a':<40} {'n/a':<22} not a git repo")
+            typer.echo(f"{name:<12} {'n/a':<22} {'n/a':<22}")
             continue
         typer.echo(
-            f"{name:<12} {_last_commit(role_path):<22} {_last_ooda_ok(role_path):<40} {_last_remote_head(role_path):<22} none"
+            f"{name:<12} {_last_commit(role_path):<22} {_last_remote_head(role_path):<22}"
         )

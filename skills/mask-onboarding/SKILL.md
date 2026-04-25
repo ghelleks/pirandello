@@ -16,7 +16,7 @@ Track progress in the user’s workspace notes or Todoist; do **not** invent hid
 ### Phase 2 — Roles
 
 1. Ensure `work/` (or other Roles) have `ROLE.md` stubs upgraded with real behavioral deltas.
-2. For each Role, confirm `OODA.md` signal sources list matches reality (use `add-role` skill patterns).
+2. For each Role that uses scheduled OODA (`beckett run`), confirm `OODA.md` signal sources list matches reality (use `add-role` skill patterns). Skip Roles without `OODA.md`.
 
 ### Phase 3 — Infrastructure
 

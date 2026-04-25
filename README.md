@@ -4,10 +4,10 @@ Pirandello is a **file- and git-first** system for AI-assisted memory and config
 
 ## What you get
 
-- A `**masks` CLI** (`cli/`) for setup, health checks, git sync, mcp-memory indexing, and an OODA heartbeat runner.
+- A `**masks` CLI** (`cli/`) for setup, health checks, git sync, mcp-memory indexing, and reflect/reference flows.
 - **Session hooks** (`hooks/`) that pull repos, inject a fixed prompt stack, commit on session end, and re-index memory after commits.
-- **Guard scripts** (`guards/`) used by `masks run` to decide when a scheduled LLM pass is warranted.
-- **Agent skills** (`skills/`) for onboarding, archiving, reference refresh, synthesis, and reflection—see each `SKILL.md`.
+- Optional **`beckett`** CLI for scheduled OODA (guards, `beckett run`, `.ooda.log`). The `mask-ooda-orient-synthesis` skill ships with that tool.
+- **Agent skills** (`skills/`) for onboarding, archiving, reference refresh, and reflection—see each `SKILL.md`.
 - A **Cursor / VS Code extension** (`extension/`) that bridges the editor’s JSON hook protocol to the shell hooks (optional install).
 
 Full system design: `[docs/design.md](docs/design.md)`. Unit specs live under `[docs/specs/](docs/specs/)`.
@@ -17,6 +17,7 @@ Full system design: `[docs/design.md](docs/design.md)`. Unit specs live under `[
 - **Cursor** or **Claude Code** for interactive sessions (hooks target both).
 - **Python 3.10+** and **[uv](https://github.com/astral-sh/uv)** to install the `masks` package from `cli/`.
 - **git** (each Role is its own repository under a configurable base directory).
+- Optional **`gws`** (Google Workspace CLI) if you use Calendar/Gmail in scheduled automation or skills; each Role sets `GWS_PROFILE` in `[role]/.env` to match a profile you configured in gws.
 - Optional `**gh`** when using GitHub-based `masks reflect` flows.
 
 ## Quick start
@@ -25,7 +26,7 @@ Full system design: `[docs/design.md](docs/design.md)`. Unit specs live under `[
 2. `cd cli && uv tool install .`
 3. Run `masks setup` (optionally `masks setup --base /path/to/base`).
 4. Open a **Role directory** (e.g. `…/personal` or `…/work`) as the workspace root in your editor.
-5. Configure `[base]/.env` with `MCP_MEMORY_DB_PATH` and other keys from `.env.example`.
+5. Configure `[base]/.env` with `MCP_MEMORY_DB_PATH` and other keys from `.env.example`. For Roles that use Google tools, add `[role]/.env` (from `templates/role.env.example` via `masks setup --role-env` or `masks add-role --role-env`) and set `GWS_PROFILE` to your **gws** account label.
 
 ## Documentation
 

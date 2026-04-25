@@ -1,17 +1,15 @@
-"""``masks doctor`` — seven health checks (six blocking + budget WARN)."""
+"""``masks doctor`` — five blocking checks plus token-budget WARN."""
 
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
 import typer
 
-from masks.ooda_parse import extract_agenda_skills
-from masks.paths import resolve_base_path, resolve_framework_root, resolve_memory_db_path
+from masks.paths import resolve_base_path, resolve_memory_db_path
 from masks.roles import iter_role_dirs
 from masks.token_budget import combined_always_loaded
 
@@ -51,14 +49,13 @@ def _has_env_entries(path: Path) -> bool:
 def doctor_cmd(json_out: bool = typer.Option(False, "--json", help="Emit machine-readable JSON")) -> None:
     """Run Pirandello health checks."""
     base = resolve_base_path()
-    fw = resolve_framework_root()
     checks: list[dict[str, Any]] = []
 
     def add(cid: str, ok: bool, msg: str, status: str | None = None) -> None:
         st = status or ("pass" if ok else "fail")
         checks.append({"id": cid, "status": st, "message": msg})
 
-    # 1 agents_symlink
+    # 1 agents_global
     agents = base / "AGENTS.md"
     ok1 = False
     msg1 = ""
@@ -72,9 +69,12 @@ def doctor_cmd(json_out: bool = typer.Option(False, "--json", help="Emit machine
                 msg1 = "symlink target missing"
         except OSError as e:
             msg1 = str(e)
+    elif agents.is_file():
+        ok1 = True
+        msg1 = f"AGENTS.md present ({agents})"
     else:
-        msg1 = "AGENTS.md missing or not a symlink"
-    add("agents_symlink", ok1, msg1)
+        msg1 = "AGENTS.md missing"
+    add("agents_global", ok1, msg1)
 
     # 2 role_env
     roles = list(iter_role_dirs(base))
@@ -132,36 +132,7 @@ def doctor_cmd(json_out: bool = typer.Option(False, "--json", help="Emit machine
     msg4 = f"database {db_path_resolved}" if ok4 else f"database not found: {db_path_resolved}"
     add("mcp_memory_db", ok4, msg4)
 
-    # 5 ooda_agenda
-    bad_ooda: list[str] = []
-    for r in roles:
-        skills = extract_agenda_skills(r / "OODA.md")
-        if not skills:
-            bad_ooda.append(r.name)
-    ok5 = not bad_ooda
-    msg5 = "all roles parseable" if ok5 else f"missing or empty agenda: {', '.join(bad_ooda)}"
-    add("ooda_agenda", ok5, msg5)
-
-    # 6 guards_executable
-    all_skills: set[str] = set()
-    for r in roles:
-        all_skills.update(extract_agenda_skills(r / "OODA.md"))
-    guards_dir = fw / "guards"
-    bad_guards: list[str] = []
-    if not guards_dir.is_dir():
-        bad_guards.append("guards/ directory missing")
-    else:
-        for s in sorted(all_skills):
-            g = guards_dir / f"{s}.sh"
-            if not g.is_file():
-                bad_guards.append(f"missing {s}.sh")
-            elif not os.access(g, os.X_OK):
-                bad_guards.append(f"{s}.sh not executable")
-    ok6 = not bad_guards
-    msg6 = "all guards present" if ok6 else "; ".join(bad_guards)
-    add("guards_executable", ok6, msg6)
-
-    # 7 always_loaded_budget (WARN only)
+    # 5 always_loaded_budget (WARN only)
     warn_roles: list[str] = []
     for r in roles:
         n = combined_always_loaded(base, r)

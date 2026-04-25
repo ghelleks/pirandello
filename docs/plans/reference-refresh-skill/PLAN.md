@@ -136,7 +136,7 @@ Wrap each Drive-backed row in an isolated failure domain:
 
 ### Interactive vs OODA (soft constraint)
 
-- **Non-interactive mode:** When the environment variable **`PIRANDELLO_NONINTERACTIVE=1`** is set (convention: `masks run` / OODA Act sets this before invoking the agent), **never** prompt; always proceed with exports.
+- **Non-interactive mode:** When the environment variable **`PIRANDELLO_NONINTERACTIVE=1`** is set (convention: `beckett run` / OODA Act sets this before invoking the agent), **never** prompt; always proceed with exports.
 - **Interactive mode:** When `PIRANDELLO_NONINTERACTIVE` is unset and the runtime supports user prompts, **before** exporting a Drive-backed document whose existing `Refreshed` date parses as **within the last 7 calendar days** (compare parsed `Refreshed` to local today), ask:  
   *“`<File>` was refreshed on `<date>`. Re-export from Google Drive? (y/N/skip-all-remaining-recency-prompts)”*  
   - **N** or empty → skip that document (no export, **no** `Refreshed` change).  

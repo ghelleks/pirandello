@@ -13,12 +13,12 @@ This document is the **single system-level build plan**: how all thirteen units 
 
 Pirandello splits into:
 
-- **`pirandello/`** — public framework (AGENTS.md, hooks, `masks` CLI, skills, guards, extension). **No personal content** ever lands here (S-01).
+- **`pirandello/`** — public framework (AGENTS.md, hooks, `masks` CLI, skills, extension). **No personal content** ever lands here (S-01). Scheduled OODA (guards, `beckett run`) ships in the **`beckett`** package.
 - **`[base]/`** — user-owned Desktop (or configured) tree: symlinked global `AGENTS.md`, per-Role git repos (`personal/`, `work/`, …), shared `.env` for infra keys.
 
 **Session root invariant:** Interactive work assumes the **Role directory** is the workspace root. Wrong root → hooks emit a stderr banner and skip destructive git work; agents must not treat subfolders as repo roots (S-05 session-hooks validation).
 
-**Two interactive runtimes:** Cursor / Claude Code use **shell hooks**. **OODA** uses `masks run <role>` (no session hooks); context is **OODA.md only**.
+**Two interactive runtimes:** Cursor / Claude Code use **shell hooks**. **OODA** uses **`beckett run <role-dir-or-name>`** (no session hooks); context is **`OODA.md` only** for that subprocess.
 
 ---
 
@@ -28,7 +28,7 @@ Pirandello splits into:
 |---|------|----------|-------------------|
 | 1 | **session-hooks** | `start.sh`, `end.sh`, `post-commit.sh` | Cursor extension installs wiring; `masks setup` installs git post-commit |
 | 2 | **masks-cli-core** | `setup`, `add-role`, `sync`, `status`, `doctor` | Every other unit assumes base resolution, hook install, symlinks |
-| 3 | **masks-run** | Heartbeat runner, guard loop, LLM spawn | Cron; `OODA.md` agendas |
+| 3 | **`beckett`** | Heartbeat runner, guard loop, LLM spawn | Cron; `OODA.md` agendas |
 | 4 | **masks-index** | `masks index <role> [--rebuild]` | post-commit hook; manual repair |
 | 5 | **masks-reflect** | `masks reflect` — git/PR only in `personal/` | reflect skill JSON |
 | 6 | **ooda-orient-synthesis** | Weekly synthesis → `personal/Memory/Synthesis/` | reflect skill; never `work/OODA.md` |
@@ -40,7 +40,7 @@ Pirandello splits into:
 | 12 | **cursor-extension** | Clone, `uv`, `masks setup`, hook registration | First-day install path |
 | 13 | **project-blog** | `LICENSE` (MIT), `README.md`, `site/` Jekyll + GitHub Pages | Public clone path; spec `docs/specs/project-blog/` |
 
-**Dependency edges (build order hint):** hooks + cli-core + index + run before extension; skills can ship in parallel once `skills/` layout exists; reflect CLI depends on reflect skill entrypoint contract. **project-blog** is documentation and static web surface only — no hooks or Role custody; ship when `LICENSE` / `README` / site are ready, and keep **README** aligned with `docs/design.md` as other units land (see §11.4).
+**Dependency edges (build order hint):** hooks + cli-core + index before extension; **`beckett`** is its own install for cron/OODA; skills can ship in parallel once `skills/` layout exists; reflect CLI depends on reflect skill entrypoint contract. **project-blog** is documentation and static web surface only — no hooks or Role custody; ship when `LICENSE` / `README` / site are ready, and keep **README** aligned with `docs/design.md` as other units land (see §11.4).
 
 **Repo root files (constraints 10–11 / S-09–S-10):** `LICENSE` and `README.md` live at the **pirandello** repo root. They are **not** session-hook or `masks` concerns; enforcement is **inspection** (release review, optional CI file-presence checks), with content owned by the **project-blog** proposal.
 
@@ -55,7 +55,7 @@ Pirandello splits into:
 3. **Session end** → `end.sh`: `git add -A`, single conventional commit if needed, `git push` (silent failure).
 4. **Post-commit** (git inside Role) → if `Memory/` changed → `masks index <role>` incremental update to shared SQLite DB (files canonical, S-02).
 
-### 3.2 OODA path (`masks run <role>`)
+### 3.2 OODA path (`beckett run <role-dir-or-name>`)
 
 1. Load `$BASE/.env` + `$ROLE/.env`; parse `OODA.md` agenda; run **all** guards in order.
 2. If every guard fails → log line with **`OODA_OK`**, **no LLM** (UC1, T7).
@@ -105,7 +105,7 @@ Pirandello splits into:
 | Inject prompt stack order | ✅ `start.sh` | — | Progressive disclosure policy in AGENTS.md |
 | Commit + push session end | ✅ `end.sh` | `masks sync` | — |
 | mcp-memory incremental index | ✅ `post-commit.sh` | `masks index` manual | — |
-| OODA pre-flight / no LLM | — | ✅ `masks run` | — |
+| OODA pre-flight / no LLM | — | ✅ `beckett run` | — |
 | DB rebuild from files | — | ✅ `masks index --rebuild` | — |
 | SELF.md only via PR | — | ✅ `masks reflect` | reflect skill never runs `git` |
 | SELF ≤500 tokens post-merge | — | validate in skill + optional `masks doctor` | skill algorithm |
@@ -160,7 +160,7 @@ Pirandello splits into:
 |----------|--------|
 | Session-end commits/pushes work without user action? | ✅ **`end.sh`** auto-commit + push when workspace is valid Role root. |
 | Post-commit updates DB for new Memory files? | ✅ **`post-commit.sh`** → `masks index <role>` when `Memory/` changed. |
-| First `masks run work`: guards fail, OODA_OK, no LLM? | ✅ **`masks run`** runs all guards; all fail → log **`OODA_OK`**, exit 0, no subprocess (masks-run PLAN). |
+| First `beckett run work` (or path to `work/`): guards fail, OODA_OK, no LLM? | ✅ **`beckett run`** runs all guards; all fail → log **`OODA_OK`**, exit 0, no subprocess (`beckett` `docs/specs/beckett-run/`). |
 | User never runs terminal / configures hooks? | ✅ **Cursor extension** performs clone, `uv tool install`, `masks setup`, writes `.cursor/hooks.json`; user completes onboarding in chat. |
 
 ### UC2 — Write-local (Frank example)
@@ -255,7 +255,7 @@ Pirandello splits into:
 | **T4** | `alice.md` only in work git history. |
 | **T5** | Idempotent `masks` commands per masks-cli-core + reflect skip rules + index no-op. |
 | **T6** | Combined **>1,500** → visible **`start.sh` warning**; verify full injection of SELF + ROLE + CONTEXT bodies; **`masks doctor`** aligns (§6). |
-| **T7** | All per-session behaviors listed in design’s reliability table implemented in hooks/run — not AGENTS-only. |
+| **T7** | All per-session behaviors listed in design’s reliability table implemented in hooks / **`beckett run`** — not AGENTS-only. |
 | **T8** | Cross-role patterns → SELF via reflect; single-role → ROLE.md + work/personal Memory only; synthesis cross-role filter + reflect filter. |
 
 ---
@@ -264,7 +264,7 @@ Pirandello splits into:
 
 | Signal | Mitigation |
 |--------|------------|
-| Session-critical only in AGENTS | Hooks + `masks run` own lifecycle (§5). |
+| Session-critical only in AGENTS | Hooks + **`beckett run`** own OODA lifecycle (§5). |
 | Work session writes `personal/Memory/` | AGENTS + code review; optional pre-commit path guard. |
 | Direct `SELF.md` commit | Only `masks reflect` applies SELF patch on branch; hooks never add SELF. |
 | DB as source of truth | Indexer only reads files; no “memory_store without file” API in skills. |
@@ -281,7 +281,7 @@ Pirandello splits into:
 |----|------------------|
 | **S-01** | Framework repo policy + hook validation + extension never copies Role content into pirandello. |
 | **S-02** | File-first Memory; index is derived; rebuild story documented. |
-| **S-03** | Pull/inject/commit/push/index triggers in hooks; OODA guards in CLI. |
+| **S-03** | Pull/inject/commit/push/index triggers in hooks; OODA guards in **`beckett`**. |
 | **S-04** | Repo boundaries + synthesis workspace rule + reflect git scope. |
 | **S-05** | Idempotent setup/sync/index/reflect skip per unit plans. |
 | **S-06** | SELF changes only on reflect branches + PR merge. |
@@ -295,7 +295,7 @@ Pirandello splits into:
 ## 11. Implementation clarifications (cross-unit)
 
 1. **`REFLECT_OK` log ownership:** `masks-reflect` PLAN says CLI appends all log lines; `reflect-skill` PLAN sometimes mentions skill appending `REFLECT_OK`. **Canonical:** **CLI appends exactly one line per non–dry-run** (`REFLECT_OK` / `REFLECT_PR` / `REFLECT_SKIP`) to avoid double writes; skill emits JSON only.
-2. **`masks run` guard path:** Resolve `GUARDS_DIR` via **`resolve_framework_root()`** (same as CLI), not a hardcoded `$HOME/Code/pirandello` literal, for relocatable installs.
+2. **`beckett run` guard path:** Resolve bundled guards via **`beckett`’s** `resolve_framework_root()` → packaged `_data/guards/`, not a hardcoded repo path, for relocatable installs.
 3. **Onboarding initial SELF — resolved:** The onboarding skill makes exactly one direct commit to `personal/SELF.md` on `main` with message `onboarding: bootstrap SELF.md`. This is the **sole documented exception** to the PR-only rule (S-06, constraint 7). After onboarding, every `SELF.md` change must go through a `masks reflect` PR. T2 accepts commits matching `onboarding: bootstrap SELF.md` or reflect PR merge commits only.
 4. **`README.md` and cross-unit accuracy (S-10):** The root README is a **summary** of what Pirandello is and how to learn more (`docs/design.md`). It must **not** promise features that no unit implements. When a unit ships user-visible capability (e.g. extension install path, `masks` subcommands, `site/` blog), **project-blog** (or a coordinated doc PR) should update README so newcomers are not misled. Jekyll pages and posts are subject to the same **design accuracy** rule (project-blog M-05). README line budget (≤100 lines) implies **link out** rather than duplicating the full unit list — but the **high-level** architecture (Roles, hooks, `masks`, OODA, public vs base) should remain true to the design doc.
 

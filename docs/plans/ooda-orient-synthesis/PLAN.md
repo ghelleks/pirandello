@@ -1,8 +1,8 @@
 # Proposal: `ooda-orient-synthesis`
 
 **Unit:** `ooda-orient-synthesis`  
-**Spec:** `docs/specs/ooda-orient-synthesis/SPEC.md`  
-**Status:** draft  
+**Spec:** `docs/specs/ooda-orient-synthesis/` in the **`beckett`** source tree.  
+**Status:** draft — implementation & guard run under **`beckett run`**.  
 **Date:** 2026-04-23
 
 ---
@@ -11,7 +11,7 @@
 
 `ooda-orient-synthesis` is the **Orient**-phase skill that deliberately exercises Pirandello’s **global-read** rule: it runs with the `personal/` Role as the workspace root, reads curated facts from every Role’s `Memory/` tree under the configured base, and writes **only** cross-cutting pattern summaries into `personal/Memory/Synthesis/`. Those files are the structured input that `masks reflect` / the `reflect` skill consumes when drafting `SELF.md` PRs—this skill never touches `SELF.md`, never opens PRs, and performs no git operations.
 
-**Pipeline placement:** `masks run personal` → pre-flight guards (including `guards/ooda-orient-synthesis.sh`) → if the guard passes, an LLM session loads `personal/OODA.md` and executes the agenda item `ooda-orient-synthesis` → the skill writes/updates synthesis markdown + `personal/Memory/INDEX.md` + `personal/.synthesis.log` → the user’s **session-end hook** (or the next interactive close in `personal/`) commits and pushes `personal/` → later, `masks reflect` reads `personal/Memory/Synthesis/*.md` to build evidence-backed `SELF.md` diffs.
+**Pipeline placement:** `beckett run personal` (or `beckett run <path-to-personal-role>`) → pre-flight guards (including `ooda-orient-synthesis.sh` from the `beckett` install) → if the guard passes, an LLM session loads `personal/OODA.md` and executes the agenda item `ooda-orient-synthesis` → the skill writes/updates synthesis markdown + `personal/Memory/INDEX.md` + `personal/.synthesis.log` → the user’s **session-end hook** (or the next interactive close in `personal/`) commits and pushes `personal/` → later, `masks reflect` reads `personal/Memory/Synthesis/*.md` to build evidence-backed `SELF.md` diffs.
 
 **Operational definition of “cross-role pattern”:** A **candidate pattern** is a recurring behavior, preference, or theme inferred from multiple atomic observations across `Memory/` files (people, projects, decisions, observations). A pattern is **eligible for a synthesis file** only if:
 
@@ -30,7 +30,7 @@ This differs from a **role-specific observation**: the latter belongs in that Ro
 
 **Environment:**
 
-- `BASE` — resolved by `masks run` and exported before guards run: the configured Pirandello base directory (e.g. the parent of `personal/`). The guard uses `"$BASE"` only; it does not infer base from `pwd` except optionally to validate paths.
+- `BASE` — resolved by `beckett run` and exported before guards run: the configured Pirandello base directory (e.g. the parent of `personal/`). The guard uses `"$BASE"` only; it does not infer base from `pwd` except optionally to validate paths.
 - `SYNTHESIS_DAY` — optional in `$BASE/.env`. Integer **0–6** where **0 = Sunday** through **6 = Saturday**. Default if unset: **0** (Sunday).
 
 **Logic (in order):**
@@ -42,7 +42,7 @@ This differs from a **role-specific observation**: the latter belongs in that Ro
 **Notes:**
 
 - Guard performs **no** `Memory/` traversal and **no** writes—consistent with M-02/M-03 and stress T1.
-- Non-synthesis days and “already ran” are **normal** outcomes: `masks run` treats all guards failing as **OODA_OK**, not as an error.
+- Non-synthesis days and “already ran” are **normal** outcomes: `beckett run` treats all guards failing as **OODA_OK**, not as an error.
 
 ---
 
@@ -208,7 +208,7 @@ SYNTHESIS <ISO-8601-UTC-timestamp> — <N> patterns found, <M> updated
 |------|--------|------|
 | S-01 | Pass | Proposal contains no personal data; only describes mechanics. |
 | S-02 | Pass | Canonical store is markdown files; DB not used as SoT. |
-| S-03 | Pass | “Must happen every session” not claimed here; weekly guard is `masks run` + hook stack. |
+| S-03 | Pass | “Must happen every session” not claimed here; weekly guard is `beckett run` + hook stack. |
 | S-04 | Pass | Writes only under `personal/Memory/` from `personal/` workspace; reads global. |
 | S-05 | Pass | No new `masks` subcommands; skill/guard idempotent aside from intentional log append per run. |
 | S-06 | Pass | No `SELF.md` commits; synthesis feeds `reflect` only. |
@@ -220,7 +220,7 @@ SYNTHESIS <ISO-8601-UTC-timestamp> — <N> patterns found, <M> updated
 
 - **`personal/OODA.md`:** Include `ooda-orient-synthesis` only under **Orient**, after observation aggregation skills; never list in `work/OODA.md`.
 - **`SKILL.md`:** Documents guard name, workspace rule, manifest generation, cluster validation pseudo-code, file templates, INDEX + log updates, stale rules, and explicit prohibition of git operations.
-- **`masks run`:** Ensures `$BASE` and `SYNTHESIS_DAY` are exported before guard execution.
+- **`beckett run`:** Ensures `$BASE` and `SYNTHESIS_DAY` are exported before guard execution.
 
 ---
 

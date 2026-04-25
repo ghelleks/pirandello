@@ -11,12 +11,12 @@ These scenarios test properties that span multiple units. No single unit spec ca
 
 ### 1. First day: fresh machine to working session
 
-A colleague installs the Cursor extension on a new machine. They have no prior Pirandello installation. They complete onboarding (SELF.md, personal/ROLE.md, work/ROLE.md, credentials, first commits), open their first work session in Cursor, work for 90 minutes writing two Memory files and archiving a completed task folder, and close Cursor. That evening, `masks run work` fires from cron for the first time.
+A colleague installs the Cursor extension on a new machine. They have no prior Pirandello installation. They complete onboarding (SELF.md, personal/ROLE.md, work/ROLE.md, credentials, first commits), open their first work session in Cursor, work for 90 minutes writing two Memory files and archiving a completed task folder, and close Cursor. That evening, `beckett run "$MASKS_BASE/work"` fires from cron for the first time.
 
 Questions the proposal must answer:
 - After the first session closes, does the session-end hook commit and push to the work remote — without any user action?
 - Does the post-commit hook fire and update the mcp-memory database for the two new Memory files — without any user action?
-- Does `masks run work` at the next cron interval evaluate guards, determine nothing to do (inbox empty, no briefer window), log OODA_OK, and exit — without invoking any LLM?
+- Does `beckett run` at the next cron interval evaluate guards, determine nothing to do (inbox empty, no briefer window), log OODA_OK, and exit — without invoking any LLM?
 - At no point in this sequence does the user need to run a terminal command, configure a hook, or manually trigger any system behavior?
 
 System constraint references: S-03 (hook-enforced reliability), S-05 (idempotent setup from extension)

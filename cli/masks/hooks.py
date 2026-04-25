@@ -10,7 +10,6 @@ from pathlib import Path
 
 PIRANDELLO_MARKER = "<!-- pirandello-hooks -->"
 _HOOKS_INSTALL_DIR = Path.home() / ".pirandello" / "hooks"
-_GUARDS_INSTALL_DIR = Path.home() / ".pirandello" / "guards"
 
 
 def copy_with_backup(src: Path, dst: Path) -> str:
@@ -35,27 +34,19 @@ def copy_with_backup(src: Path, dst: Path) -> str:
 
 
 def deploy_shared_hooks(fw: Path) -> None:
-    """Copy hook and guard scripts from the bundled package data to
-    ``~/.pirandello/hooks/`` and ``~/.pirandello/guards/``.
+    """Copy hook scripts from the bundled package data to ``~/.pirandello/hooks/``.
 
-    These stable user-owned paths are what role-level hook configuration
-    files point at, so they remain valid regardless of where the package
-    was installed from.
+    OODA guard scripts are installed with the **`beckett`** CLI, not copied here.
+    These stable user-owned hook paths remain valid
+    regardless of where the package was installed from.
     """
     _HOOKS_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
-    _GUARDS_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
 
     for script in (fw / "hooks").glob("*.sh"):
         dst = _HOOKS_INSTALL_DIR / script.name
         status = copy_with_backup(script, dst)
         dst.chmod(dst.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         print(f"  hook {script.name}: {status}")
-
-    for script in (fw / "guards").glob("*.sh"):
-        dst = _GUARDS_INSTALL_DIR / script.name
-        status = copy_with_backup(script, dst)
-        dst.chmod(dst.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        print(f"  guard {script.name}: {status}")
 
 
 def install_hooks_for_role(role_path: Path, fw: Path) -> None:  # noqa: ARG001

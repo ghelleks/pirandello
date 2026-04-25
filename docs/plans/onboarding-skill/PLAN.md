@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-The `onboarding` skill implements a **three-phase, strictly sequential** conversational flow invoked after `masks setup` has created infrastructure (directories, git init, symlinked global `AGENTS.md`, copied `.env` shells from `pirandello/.env.example`, seeded empty indexes). Phases **may not be skipped or reordered**: Phase 1 (Identity) always completes before any Role dialogue; Phase 2 always runs personal context first, then every additional Role; Phase 3 always runs last.
+The `onboarding` skill implements a **three-phase, strictly sequential** conversational flow invoked after `masks setup` has created infrastructure (directories, git init, copied global `AGENTS.md`, copied base `.env` from `pirandello/.env.example` and optional role `.env` from `templates/role.env.example`, seeded empty indexes). Phases **may not be skipped or reordered**: Phase 1 (Identity) always completes before any Role dialogue; Phase 2 always runs personal context first, then every additional Role; Phase 3 always runs last.
 
 **Philosophy:** *You exist first; roles come after.* Phase 1 establishes a cross-context **v0.1 self-narrative**—a draft the user will revise over time—without employers, tools, or credentials. Phase 2 layers **how the user operates in each context** (starting with personal life), wiring credentials and signals through the existing **`add-role` skill** so onboarding does not become a second credential interview. Phase 3 proves the machine is usable (MCP + git) and lands **first commits** so hooks and remotes behave like a real deployment.
 
@@ -93,7 +93,7 @@ Phase 2 always begins with **`personal` context** (the repo that already exists 
      - `role_root`: absolute path to the personal role directory (agent-internal; never spoken)  
      - `env_path`: `[role_root]/.env`  
      - `phase`: `onboarding`  
-   - `add-role` owns: **every key** in `pirandello/.env.example` (parsed as `KEY=` lines, excluding blanks and comments), **git remote** setup prompts, and **OODA signal-source** inventory per design.md.  
+   - `add-role` owns: **every key** in `pirandello/templates/role.env.example` (parsed as `KEY=` lines, excluding blanks and comments), **git remote** setup prompts, and **OODA signal-source** inventory per design.md.  
    - Onboarding **blocks** until `add-role` returns a structured completion: `{ keys: Record<key, filled|skipped>, remote: configured|skipped|none, ooda_sources: [...] }`.
 
 2. **Onboarding-only: current focus → `CONTEXT.md`**  
@@ -124,10 +124,10 @@ For **each** named role (iteration order = order user gives, typically one at a 
 
 4. **Compose `[role]/ROLE.md`** ≤500 tokens.
 
-### 3.3 `.env.example` keys and skipped credentials (M-06, M-07)
+### 3.3 `role.env.example` keys and skipped credentials (M-06, M-07)
 
 - **Presentation:** Keys are introduced **only inside `add-role`**; onboarding never duplicates key-by-key dialogue.  
-- **Completeness:** Before leaving each Role sub-phase, onboarding verifies the `add-role` completion record lists **every key** from `pirandello/.env.example`. If any are missing from the dialogue trace, onboarding **re-invokes** `add-role` in “resume” mode for that role until complete.  
+- **Completeness:** Before leaving each Role sub-phase, onboarding verifies the `add-role` completion record lists **every key** from `pirandello/templates/role.env.example`. If any are missing from the dialogue trace, onboarding **re-invokes** `add-role` in “resume” mode for that role until complete.  
 - **Skipped keys:** User may say “skip,” “not now,” or “I don’t have it.” `add-role` writes `KEY=` (empty value) to the role `.env`. Onboarding echoes plain language: “Got it—I’ve left that blank for now; we can fill it in later.”  
 - **Confused user (scenario 6):** If user says “I don’t know what that is,” `add-role` (per soft constraint) gives a **one-sentence** plain hint, then repeats the **single** question “Do you want to try after setup, or skip for now?”—still one `?` per turn.
 

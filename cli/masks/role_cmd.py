@@ -13,7 +13,7 @@ import typer
 from masks.hooks import install_hooks_for_role
 from masks.paths import resolve_base_path, resolve_framework_root
 from masks.roles import is_role_layout
-from masks.setup_cmd import _ensure_role_env_defaults, _ensure_role_scaffold
+from masks.setup_cmd import _ensure_role_env_defaults, _ensure_role_scaffold, resolve_role_env_template
 
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
@@ -38,9 +38,9 @@ def add_role(
         typer.echo(f"Role {name} already initialized; refreshing hooks.")
         role_env = role_path / ".env"
         if create_role_env and not role_env.is_file():
-            env_ex = fw / ".env.example"
-            if env_ex.is_file():
-                role_env.write_text(env_ex.read_text(encoding="utf-8"), encoding="utf-8")
+            src = resolve_role_env_template(fw)
+            if src.is_file():
+                role_env.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
                 typer.echo("  .env: CREATED")
         if role_env.is_file():
             _ensure_role_env_defaults(base, name, role_env)
@@ -75,7 +75,8 @@ def add_role(
                     "claude",
                     "-p",
                     "Run the mask-add-role skill for this Role directory. "
-                    "Collect credentials and signal sources; write them to .env and OODA.md when complete.",
+                    "Collect credentials and signal sources; write them to .env when complete. "
+                    "If this Role uses scheduled OODA, keep OODA.md aligned with `beckett` docs.",
                 ],
                 cwd=role_path,
                 check=False,

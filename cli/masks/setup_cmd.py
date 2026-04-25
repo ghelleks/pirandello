@@ -14,6 +14,12 @@ from masks.paths import default_memory_db_path, merge_env_file, resolve_base_pat
 DEFAULT_ROLES = ("personal", "work")
 
 
+def resolve_role_env_template(fw: Path) -> Path:
+    """Bundled `templates/role.env.example`, or `.env.example` if the role template is absent."""
+    role_tpl = fw / "templates" / "role.env.example"
+    return role_tpl if role_tpl.is_file() else fw / ".env.example"
+
+
 def _touch_index(path: Path) -> str:
     if path.is_file():
         return "EXISTS"
@@ -32,13 +38,10 @@ def _ensure_role_env_defaults(base: Path, role: str, role_env: Path) -> None:
         merge_env_file(role_env, "MASKS_BASE", str(base))
         typer.echo(f"  MASKS_BASE: defaulted to {base}")
 
-    # Role-scoped default account labels so first run isn't blank.
-    if role == "personal" and not existing.get("GWS_ACCOUNT_PERSONAL", "").strip():
-        merge_env_file(role_env, "GWS_ACCOUNT_PERSONAL", "personal")
-        typer.echo("  GWS_ACCOUNT_PERSONAL: defaulted to personal")
-    if role == "work" and not existing.get("GWS_ACCOUNT_WORK", "").strip():
-        merge_env_file(role_env, "GWS_ACCOUNT_WORK", "work")
-        typer.echo("  GWS_ACCOUNT_WORK: defaulted to work")
+    # Role-scoped gws profile label (matches common gws account names).
+    if role in ("personal", "work") and not existing.get("GWS_PROFILE", "").strip():
+        merge_env_file(role_env, "GWS_PROFILE", role)
+        typer.echo(f"  GWS_PROFILE: defaulted to {role}")
 
 
 def _ensure_role_scaffold(base: Path, role: str, fw: Path, create_role_env: bool = True) -> None:
@@ -88,21 +91,11 @@ def _ensure_role_scaffold(base: Path, role: str, fw: Path, create_role_env: bool
     if agents_src.is_file():
         typer.echo(f"  AGENTS.md: {copy_with_backup(agents_src, role_path / 'AGENTS.md')}")
 
-    tpl_ooda = fw / "templates" / "OODA.md"
-    ooda = role_path / "OODA.md"
-    if tpl_ooda.is_file() and not ooda.exists():
-        text = tpl_ooda.read_text(encoding="utf-8")
-        text = text.replace("[role-name]", role).replace("[role]", role)
-        ooda.write_text(text, encoding="utf-8")
-        typer.echo("  OODA.md: CREATED")
-    else:
-        typer.echo("  OODA.md: EXISTS")
-
-    env_ex = fw / ".env.example"
+    role_tpl_src = resolve_role_env_template(fw)
     role_env = role_path / ".env"
     if create_role_env:
-        if env_ex.is_file() and not role_env.exists():
-            typer.echo(f"  .env: {copy_with_backup(env_ex, role_env)}")
+        if role_tpl_src.is_file() and not role_env.exists():
+            typer.echo(f"  .env: {copy_with_backup(role_tpl_src, role_env)}")
         elif role_env.is_file():
             typer.echo("  .env: EXISTS")
         if role_env.is_file():
@@ -172,9 +165,3 @@ def setup_command(base: Optional[Path] = None, create_role_env: bool = False) ->
         if not existing.get("MCP_MEMORY_DB_PATH", "").strip():
             merge_env_file(base_env, "MCP_MEMORY_DB_PATH", str(db_default))
             typer.echo(f"MCP_MEMORY_DB_PATH: defaulted to {db_default}")
-        if not existing.get("GWS_ACCOUNT_WORK", "").strip():
-            merge_env_file(base_env, "GWS_ACCOUNT_WORK", "work")
-            typer.echo("GWS_ACCOUNT_WORK: defaulted to work")
-        if not existing.get("GWS_ACCOUNT_PERSONAL", "").strip():
-            merge_env_file(base_env, "GWS_ACCOUNT_PERSONAL", "personal")
-            typer.echo("GWS_ACCOUNT_PERSONAL: defaulted to personal")

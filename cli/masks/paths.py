@@ -43,7 +43,7 @@ def resolve_base_path() -> Path:
 
 
 def resolve_framework_root() -> Path:
-    """Directory containing AGENTS.md, hooks/, templates/, guards/.
+    """Directory containing AGENTS.md, hooks/, templates/ (no guards; OODA uses ``beckett``).
 
     Returns the ``_data/`` directory bundled inside the installed package so
     that hook scripts and templates are always resolved from the installed

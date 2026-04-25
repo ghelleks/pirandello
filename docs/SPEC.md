@@ -8,7 +8,7 @@
 
 ## Context
 
-Pirandello is a memory and configuration system for AI-assisted personal productivity. It models the whole person across multiple Roles (personal, work, board, consulting), stores memory as markdown files under git, and maintains a semantic search index via mcp-memory. The system runs in two modes: interactive (Cursor / Claude Code) and autonomous (OODA heartbeat loop via cron).
+Pirandello is a memory and configuration system for AI-assisted personal productivity. It models the whole person across multiple Roles (personal, work, board, consulting), stores memory as markdown files under git, and maintains a semantic search index via mcp-memory. The system runs in two modes: interactive (Cursor / Claude Code) and autonomous (OODA heartbeat via **`beckett run`** and cron).
 
 A writer producing proposals from any unit spec must treat `docs/design.md` as authoritative background context. Every design decision, constraint, and convention in the unit specs derives from it.
 
@@ -23,10 +23,10 @@ Each buildable unit has its own spec and (forthcoming) scenarios file in `docs/s
 | ------------------------- | ------------------------------------- | ----------------------------------------------- |
 | Session hooks             | `docs/specs/session-hooks/`           | `start.sh`, `end.sh`, `post-commit.sh`          |
 | `masks` CLI core          | `docs/specs/masks-cli-core/`          | `setup`, `add-role`, `sync`, `status`, `doctor`, `reference-refresh` entrypoint |
-| `masks run`               | `docs/specs/masks-run/`               | Heartbeat runner + pre-flight guard contract    |
+| `beckett run`             | (`beckett` package)                   | OODA heartbeat runner + pre-flight guard contract |
 | `masks index`             | `docs/specs/masks-index/`             | mcp-memory incremental indexer                  |
 | `masks reflect`           | `docs/specs/masks-reflect/`           | CLI PR-opener: branch, commit diff, push, `gh pr create` |
-| `ooda-orient-synthesis`   | `docs/specs/ooda-orient-synthesis/`   | Weekly cross-Role synthesis pass; writes patterns to `personal/Memory/`; feeds `masks reflect` |
+| `ooda-orient-synthesis`   | (`beckett` tree: `docs/specs/ooda-orient-synthesis/`) | Weekly cross-Role synthesis pass; feeds `masks reflect` |
 | `onboarding` skill        | `docs/specs/onboarding-skill/`        | Conversational Role + SELF.md setup             |
 | `reflect` skill           | `docs/specs/reflect-skill/`           | Cross-role synthesis + SELF.md diff + PR description |
 | `add-role` skill          | `docs/specs/add-role-skill/`          | Conversational credential collection            |

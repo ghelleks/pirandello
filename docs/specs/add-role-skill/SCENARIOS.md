@@ -9,10 +9,10 @@
 
 ### 1. New consulting role — all credentials provided
 
-A user runs `masks add-role consulting --interactive`. The directory has been created, `.env.example` copied to `consulting/.env`, default keys seeded, and hooks installed. The skill now conducts the conversational credential collection. The user has all credentials ready and provides values for every key.
+A user runs `masks add-role consulting --interactive`. The directory has been created, `templates/role.env.example` copied to `consulting/.env`, default keys seeded, and hooks installed. The skill now conducts the conversational credential collection. The user has all credentials ready and provides values for every key.
 
 Questions the proposal must answer:
-- Does the skill ask about every key in `.env.example`, one at a time?
+- Does the skill ask about every key in `templates/role.env.example`, one at a time?
 - Does each question name the key in plain language and explain what it is and where to find it?
 - Does it confirm each provided value with a human-readable message before moving to the next key?
 - Does it write all provided values to `consulting/.env`?
@@ -24,7 +24,7 @@ Metric cross-references: M-01, M-02, M-04, M-06, M-08
 
 ### 2. User skips multiple credentials
 
-A user is setting up a new personal board seat Role. Several keys in `.env.example` (e.g., `WORKBOARD_API_KEY`, `GITLAB_TOKEN`) are not relevant for this Role. The user skips them.
+A user is setting up a new personal board seat Role. Several keys in `templates/role.env.example` (e.g., `WORKBOARD_API_KEY`, `GITLAB_TOKEN`) are not relevant for this Role. The user skips them.
 
 Questions the proposal must answer:
 - Is each skipped key still written to the `.env` file as an empty value (not omitted)?
@@ -83,7 +83,7 @@ After credentials, the skill asks "What signal sources should this role monitor?
 Questions the proposal must answer:
 - Does the skill collect this information in the conversation?
 - What does the proposal do with this input — write it to OODA.md's Signal Sources section, return structured data to `masks add-role` for writing, or something else?
-- Is the resulting signal source list stored in a way that `masks run` can use it?
+- Is the resulting signal source list stored in `OODA.md` so `beckett run` can use it when OODA is enabled?
 
 Metric cross-references: M-08 (end summary must include remote status; implies signal sources are also part of the outcome)
 
@@ -95,7 +95,7 @@ A user is inside a session and says "add a new role" without using the CLI. The 
 
 Questions the proposal must answer:
 - Does the skill ask for the Role name at the start of the conversation (since `masks add-role` normally provides it)?
-- Does it handle the case where `.env.example` may need to be read directly from `pirandello/`?
+- Does it handle the case where `role.env.example` may need to be read directly from `pirandello/`?
 - Does the skill's open decisions section address this direct-invocation path?
 
 Metric cross-references: M-01, M-02 (all keys covered, plain-language questions)
@@ -104,13 +104,13 @@ Metric cross-references: M-01, M-02 (all keys covered, plain-language questions)
 
 ## Stress Tests
 
-**T1 Every key in `.env.example` is asked about.**  
-The skill asks a question for every key in `.env.example`, including those the user is likely to skip. No key is silently omitted.  
-Pass: the count of questions asked equals the count of keys in `.env.example`; any key not asked about fails this test.
+**T1 Every key in `templates/role.env.example` is asked about.**  
+The skill asks a question for every key in `templates/role.env.example`, including those the user is likely to skip. No key is silently omitted.  
+Pass: the count of questions asked equals the count of keys in `templates/role.env.example`; any key not asked about fails this test.
 
 **T2 Each question is in plain language.**  
 Every key question names the key (in human-readable form) and explains what it is without assuming the user knows what it is.  
-Pass: reviewing the proposal's question templates, each includes a non-technical explanation; questions that only show the raw key name (e.g., "What is your `GMAIL_REFRESH_TOKEN`?") without explanation fail.
+Pass: reviewing the proposal's question templates, each includes a non-technical explanation; questions that only show the raw key name (e.g., "What is your `GWS_PROFILE`?") without explanation fail.
 
 **T3 Skipped keys are written as empty strings in `.env`.**  
 After the skill completes, a key the user skipped appears in `consulting/.env` as `KEY_NAME=` (empty value), not absent from the file.  
@@ -120,9 +120,9 @@ Pass: `grep "SKIPPED_KEY" consulting/.env` returns one line with an empty value,
 No single turn in the credential collection presents multiple keys as a list or asks two questions.  
 Pass: reviewing the dialogue design, each turn ends with a question about a single key; bulleted lists of keys fail this test.
 
-**T5 The skill never shows `.env` or `.env.example` file contents to the user.**  
+**T5 The skill never shows `.env` or `role.env.example` file contents to the user.**  
 The raw key list, file paths, and `.env` file contents are never shown in the conversation.  
-Pass: the proposal's dialogue templates never render the `.env` or `.env.example` file as text output to the user.
+Pass: the proposal's dialogue templates never render the `.env` or `role.env.example` file as text output to the user.
 
 **T6 Confirmation after each key.**  
 After each key is written (or skipped), the skill confirms with a human-readable message.  
@@ -140,11 +140,11 @@ Pass: the end of every skill run (regardless of how many keys were skipped or wh
 
 ## Anti-Pattern Regression Signals
 
-**Keys silently skipped without asking.** The skill omits keys it judges to be "irrelevant" for the Role type (e.g., skipping `WORKBOARD_API_KEY` for a personal Role). Symptom: `.env` is shorter than `.env.example`; adding that tool to the Role later requires manually editing the file. Indicates: filtering of "relevant" keys before presenting them. Maps to: M-01.
+**Keys silently skipped without asking.** The skill omits keys it judges to be "irrelevant" for the Role type (e.g., skipping `WORKBOARD_API_KEY` for a personal Role). Symptom: `.env` is shorter than `templates/role.env.example`; adding that tool to the Role later requires manually editing the file. Indicates: filtering of "relevant" keys before presenting them. Maps to: M-01.
 
-**Multiple keys in a single turn.** The skill presents "Now I need a few credentials — your Gmail refresh token, your Google Calendar ID, and your Todoist API key." Symptom: user gives rushed or partial answers; some keys are missed; the `.env` file is incomplete. Indicates: batch credential collection instead of one-at-a-time flow. Maps to: M-04.
+**Multiple keys in a single turn.** The skill presents "Now I need a few credentials — your gws profile label, WorkBoard key, and Todoist API key." Symptom: user gives rushed or partial answers; some keys are missed; the `.env` file is incomplete. Indicates: batch credential collection instead of one-at-a-time flow. Maps to: M-04.
 
-**`.env` file exposed during confirmation.** After writing a key, the skill shows the user the current state of the `.env` file: "Here's what your `.env` looks like now: `GMAIL_REFRESH_TOKEN=ya29.xxx`." Symptom: credentials are visible in the chat transcript; security and spec constraint violated. Indicates: M-05 violation (file must not be shown). Maps to: M-05.
+**`.env` file exposed during confirmation.** After writing a key, the skill shows the user the current state of the `.env` file: "Here's what your `.env` looks like now: `TODOIST_API_TOKEN=abc123`." Symptom: credentials are visible in the chat transcript; security and spec constraint violated. Indicates: M-05 violation (file must not be shown). Maps to: M-05.
 
 **Git remote question blocks on failure.** If the user provides a remote URL and `git remote add origin` fails (e.g., the URL has a typo), the skill retries indefinitely or refuses to continue. Symptom: onboarding stalls when a remote is unreachable; user cannot complete role setup without fixing the remote. Indicates: remote configuration treated as a required step rather than an optional one. Maps to: M-07.
 
