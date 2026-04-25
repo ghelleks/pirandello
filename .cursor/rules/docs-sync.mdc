@@ -1,0 +1,25 @@
+---
+description: Behavioral changes in cli/ must also update design.md, specs, and scenarios
+alwaysApply: true
+---
+
+# Docs must stay in sync with code
+
+`docs/design.md` is the authoritative description of how Pirandello works. `docs/specs/` contains formal requirements. `docs/specs/*/SCENARIOS.md` contains acceptance criteria. All three must be updated whenever observable behavior changes.
+
+| You changed | You must also update |
+|---|---|
+| `masks setup` behavior | `docs/design.md` § The `masks` CLI, `docs/specs/masks-cli-core/` |
+| Hook scripts or content | `docs/design.md` § Hooks, `docs/specs/session-hooks/` |
+| Framework asset resolution | `docs/design.md` § Two Repos + Hooks, all affected specs |
+| `masks run` / guard contract | `docs/specs/masks-run/SPEC.md`, `docs/design.md` § OODA |
+| Any file path, env var, or CLI flag | Every spec, scenario, and design.md section that references it |
+
+A change to `cli/` without a corresponding `docs/` update is incomplete.
+
+## Key invariants
+
+- **Bundled assets**: framework files live in `cli/masks/_data/`. `resolve_framework_root()` returns that path — never walk the filesystem to find it.
+- **Copy, never symlink**: `masks setup` copies files; symlinks break for users without the source repo.
+- **Backup before overwrite**: re-running setup creates `.bak.<timestamp>` files, not silent overwrites.
+- **Specs are the contract**: failing a static evaluation metric in a `SPEC.md` is equivalent to failing a test.
