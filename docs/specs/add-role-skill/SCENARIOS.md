@@ -82,8 +82,8 @@ After credentials, the skill asks "What signal sources should this role monitor?
 
 Questions the proposal must answer:
 - Does the skill collect this information in the conversation?
-- What does the proposal do with this input — write it to OODA.md's Signal Sources section, return structured data to `masks add-role` for writing, or something else?
-- Is the resulting signal source list stored in `OODA.md` so `beckett run` can use it when OODA is enabled?
+- What does the proposal do with this input — surface it in the end summary, or something else?
+- Is the user pointed toward `beckett install` if they want to enable scheduled OODA for this role?
 
 Metric cross-references: M-08 (end summary must include remote status; implies signal sources are also part of the outcome)
 

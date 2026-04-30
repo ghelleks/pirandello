@@ -100,7 +100,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
 │   ├── ROLE.md             ← personal behavioral delta (required)
 │   ├── AGENTS.md           ← personal-specific tool behavior (optional)
 │   ├── CONTEXT.md          ← personal current focus
-│   ├── OODA.md             ← optional; autonomous loop config (`beckett run`)
+│   ├── loop.yaml           ← optional; OODA loop config (`beckett run`)
 │   ├── .env                ← optional personal role overrides (gitignored)
 │   ├── .gitignore          ← ignores .env
 │   ├── Memory/             ← base memory: people, facts, decisions
@@ -119,7 +119,7 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
     ├── ROLE.md             ← work behavioral delta (required)
     ├── AGENTS.md           ← work-specific tool behavior (optional)
     ├── CONTEXT.md          ← work current focus
-    ├── OODA.md             ← optional; OODA agenda when using `beckett run`
+    ├── loop.yaml           ← optional; OODA loop config (`beckett run`)
     ├── .env                ← optional work role overrides (gitignored)
     ├── .gitignore          ← ignores .env
     ├── Memory/             ← work-specific memory
@@ -373,7 +373,7 @@ If `SELF.md` or `ROLE.md` grows beyond ~500 tokens, it needs curation, not expan
 
 ## OODA (scheduled automation)
 
-Non-interactive OODA (guards, `.ooda.log`, heartbeat LLM with `OODA.md`-only context) runs under **`beckett run`**. Add `OODA.md` to any Role that should run a background loop (use the `OODA.md` template from the `beckett` install), and schedule **`beckett run`** with a **path to the Role directory**. Contract and examples: `beckett` package `docs/design.md` and `docs/specs/beckett-run/SPEC.md`.
+Non-interactive OODA (guards, `.ooda.log`, headless LLM invocation) runs under **`beckett run`**. Run `beckett install <role-dir>` to generate a `loop.yaml` for that Role. `OODA.md`, if present in a role directory, is a human-readable planning document and is not read by `beckett`. Schedule **`beckett run`** with a **path to the Role directory**. Contract and examples: `beckett` package `docs/design.md` and `docs/specs/beckett-run/SPEC.md`.
 
 **Write routing** (policy for agents, unchanged): work-scoped observations go to `work/Memory/`; personal-scoped to `personal/Memory/`; cross-cutting synthesis to `personal/Memory/`. The weekly `ooda-orient-synthesis` skill and guard ship with **`beckett`**; see `skills/mask-ooda-orient-synthesis/SKILL.md` in that tree.
 
@@ -567,7 +567,7 @@ Checks system health: `AGENTS.md` at base (file or symlink to readable target), 
 | `masks reflect`                  | `reflect`    | Reads Memory/ files across roles and sessions, identifies cross-role patterns, drafts `SELF.md` diff and PR description |
 | `masks reference-refresh`        | `mask-reference-refresh` | Reads `Reference/INDEX.md`, refreshes Drive-backed reference docs, updates `Refreshed` dates post-write; supports dry-run |
 | `masks add-role` (interactive)   | `add-role`   | Guides credential collection conversationally, explains each key, writes `.env`                                         |
-| `masks setup` (onboarding phase) | `onboarding` | Conversational SELF.md + ROLE.md + OODA.md construction                                                                 |
+| `masks setup` (onboarding phase) | `onboarding` | Conversational SELF.md + ROLE.md construction                                                                           |
 
 
 The skills are also directly invokable from inside a session — a user can ask the agent to "reflect on this session" or "add a new role" without knowing the CLI command exists. The CLI and the skill are two entry points to the same work.
@@ -891,7 +891,7 @@ OODA is started by **`beckett run <path-to-role>`** (or a bare role name under `
 | README.md on archive                   | Inside archive skill  | High                                      |
 | Update Archive/INDEX.md                | Inside archive skill  | High                                      |
 | OODA pre-flight guard (no-op exit)     | `beckett run` shell   | Very high                                 |
-| OODA context injection (OODA.md only)  | `beckett run` shell   | Very high                                 |
+| OODA context injection (loop.yaml config)  | `beckett run` shell   | Very high                                 |
 | mcp-memory index updated after write   | Post-commit git hook  | Very high                                 |
 
 
@@ -921,7 +921,7 @@ This roadmap covers system construction only. Migration of existing content (SEL
 
 - Build or update `archive` skill to write `README.md` and append to `Archive/INDEX.md`
 - Build `reference-refresh` skill (Drive export → summary header → `Reference/INDEX.md`)
-- Build `onboarding` skill (conversational SELF.md + ROLE.md setup; optional `OODA.md` for `beckett run`); invoked by `masks setup` and directly
+- Build `onboarding` skill (conversational SELF.md + ROLE.md setup; optional `loop.yaml` via `beckett install`); invoked by `masks setup` and directly
 - Build `reflect` skill (reads Memory/ across Roles, identifies cross-role patterns, drafts SELF.md diff and PR description); invoked by `masks reflect` and directly
 - Build `add-role` skill (conversational credential collection and signal source setup); invoked by `masks add-role --interactive` and directly
 - Pre-flight guards and `beckett run` ship in the **`beckett`** package

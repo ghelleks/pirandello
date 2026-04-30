@@ -26,7 +26,7 @@ Active task folders live at the Role root (kebab-case). Each should have a `READ
 
 ## OODA heartbeat (`beckett`)
 
-Non-interactive OODA uses **`beckett run <path-to-role>`**. It reads `OODA.md`, runs pre-flight guards, and may invoke an LLM with OODA-only context. See `docs/design.md` (OODA section) and the `beckett` package docs for setup and cron.
+Non-interactive OODA uses **`beckett run <path-to-role>`**. `beckett run` uses a `loop.yaml` config (created with `beckett install`). `OODA.md`, if present in a role directory, is a human-readable planning document only — not read by `beckett`. See `docs/design.md` (OODA section) and the `beckett` package docs for setup and cron.
 
 ## Tools and reliability
 

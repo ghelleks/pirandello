@@ -76,7 +76,7 @@ def add_role(
                     "-p",
                     "Run the mask-add-role skill for this Role directory. "
                     "Collect credentials and signal sources; write them to .env when complete. "
-                    "If this Role uses scheduled OODA, keep OODA.md aligned with `beckett` docs.",
+                    "If this Role uses scheduled OODA, run `beckett install` to create a `loop.yaml`.",
                 ],
                 cwd=role_path,
                 check=False,

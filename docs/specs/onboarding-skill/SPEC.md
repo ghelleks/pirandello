@@ -1,6 +1,6 @@
 # SDD Spec: `onboarding` Skill
 
-**Context:** See `docs/spec.md` for full system design. This spec covers the conversational onboarding experience that produces SELF.md, ROLE.md(s), OODA.md(s), and seeds Memory/People/ and CONTEXT.md for each Role.
+**Context:** See `docs/spec.md` for full system design. This spec covers the conversational onboarding experience that produces SELF.md, ROLE.md(s), and seeds Memory/People/ and CONTEXT.md for each Role.
 
 **Deliverables:** `skills/onboarding/SKILL.md`. Invoked by `masks setup` (post-infrastructure) and directly by the user.
 

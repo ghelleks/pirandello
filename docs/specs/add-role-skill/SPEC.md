@@ -17,7 +17,7 @@
    - If the user skips a key, write an empty string for that key (do not omit it from the file).
 3. The skill must not show the raw `templates/role.env.example` file or `.env` file to the user.
 4. The skill must ask about keys one at a time. It must not present a list of keys to fill in.
-5. After all credential keys are handled, the skill asks: "What signal sources should this role monitor?" and collects inputs for the Role's `OODA.md` Signal Sources section.
+5. After all credential keys are handled, the skill asks: "What signal sources should this role monitor?" and collects inputs for informational context. OODA scheduling is handled separately via `beckett install` — the skill does not write to `OODA.md`.
 6. The skill asks: "What's the git remote for this role?" Git remote is optional — if the user says they don't have one or want to skip, the skill records nothing and moves on without blocking.
 7. If a git remote is provided, the skill writes it to the Role's git config (`git remote add origin <url>`).
 8. The skill confirms each written value back to the user before proceeding to the next key. Format: "Got it — I've set [key name] for this role."
@@ -40,7 +40,7 @@ The skill's scope: what it configures and what it leaves to `masks add-role` (di
 How each `templates/role.env.example` key is presented to the user. The question template (key name + plain-language explanation + where to find it).
 
 ### 3. Signal source collection
-How OODA signal sources are collected and what the skill does with them (e.g., writes to OODA.md or passes back to `masks add-role`).
+How signal sources are collected and surfaced to the user (informational context only — the skill does not write to any OODA config file; OODA scheduling uses `beckett install` to create a `loop.yaml`).
 
 ### 4. Git remote handling
 How the remote question is asked, how optionality is communicated, and how the remote is wired if provided.
@@ -49,7 +49,7 @@ How the remote question is asked, how optionality is communicated, and how the r
 The confirmation pattern after each key and the end-of-skill summary format.
 
 ### 6. Open decisions
-What the skill does if `templates/role.env.example` is not found. Whether signal source collection writes to OODA.md or returns structured data to `masks add-role` for writing.
+What the skill does if `templates/role.env.example` is not found. Signal source collection does not write to `OODA.md`; collected sources are surfaced in the end summary only.
 
 ### 7. Self-check table
 See Static Evaluation Metrics.
