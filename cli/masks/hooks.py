@@ -50,18 +50,16 @@ def deploy_shared_hooks(fw: Path) -> None:
 
 
 def install_hooks_for_role(role_path: Path, fw: Path) -> None:  # noqa: ARG001
-    """Install Cursor hooks, Claude lifecycle snippets, and git post-commit.
+    """Install Cursor hooks and Claude lifecycle snippets.
 
     Hook scripts are expected to already be deployed to
     ``~/.pirandello/hooks/`` by :func:`deploy_shared_hooks`.
     """
     start_sh = _HOOKS_INSTALL_DIR / "start.sh"
     end_sh = _HOOKS_INSTALL_DIR / "end.sh"
-    post_sh = _HOOKS_INSTALL_DIR / "post-commit.sh"
 
     _install_cursor_hooks(role_path, start_sh, end_sh)
     _install_claude_snippets(role_path, start_sh, end_sh)
-    _install_git_post_commit(role_path, post_sh)
 
 
 def _install_cursor_hooks(role_path: Path, start_sh: Path, end_sh: Path) -> None:
@@ -100,15 +98,3 @@ def _install_claude_snippets(role_path: Path, start_sh: Path, end_sh: Path) -> N
         claude.write_text(existing.rstrip() + "\n\n" + block + "\n", encoding="utf-8")
     else:
         claude.write_text(block + "\n", encoding="utf-8")
-
-
-def _install_git_post_commit(role_path: Path, post_sh: Path) -> None:
-    git_dir = role_path / ".git"
-    if not git_dir.is_dir():
-        return
-    hook_path = git_dir / "hooks" / "post-commit"
-    hook_path.parent.mkdir(parents=True, exist_ok=True)
-    script = f"#!/bin/sh\nexec bash {post_sh}\n"
-    hook_path.write_text(script, encoding="utf-8")
-    mode = hook_path.stat().st_mode
-    hook_path.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)

@@ -15,7 +15,6 @@ A colleague installs the Cursor extension on a new machine. They have no prior P
 
 Questions the proposal must answer:
 - After the first session closes, does the session-end hook commit and push to the work remote — without any user action?
-- Does the post-commit hook fire and update the mcp-memory database for the two new Memory files — without any user action?
 - Does `beckett run` at the next cron interval evaluate guards, determine nothing to do (inbox empty, no briefer window), log OODA_OK, and exit — without invoking any LLM?
 - At no point in this sequence does the user need to run a terminal command, configure a hook, or manually trigger any system behavior?
 
@@ -96,7 +95,7 @@ System constraint references: S-03 (hook-enforced sync)
 
 ### 7. `pirandello/` repo stays clean across a full session
 
-A user opens a work session, writes three Memory files, archives a task folder, and closes Cursor. The session-end hook commits and pushes to the work remote. The post-commit hook updates the mcp-memory database.
+A user opens a work session, writes three Memory files, archives a task folder, and closes Cursor. The session-end hook commits and pushes to the work remote. `masks index` can be run afterward to sync the mcp-memory database.
 
 Questions the proposal must answer:
 - Does `git log` on `~/Code/pirandello/` show no new commits from this session?
@@ -175,13 +174,13 @@ Pass: `git log --all --full-history -- "**/alice.md"` run from the personal repo
 Running `masks setup`, `masks sync`, `masks status`, `masks doctor`, `masks index <role>`, and `masks reflect` (when no patterns qualify) twice in a row on a fully configured system produces no errors and no unintended side effects.  
 Pass: a diff of all affected directories before and after the second run of each command shows zero changes; exit codes are 0.
 
-**T6 Always-loaded budget breach triggers a warning.**  
-When the combined token count of SELF.md + ROLE.md + CONTEXT.md injected at session start exceeds 1,500 tokens, `start.sh` emits a visible warning. All content is still injected in full.  
-Pass: with a SELF.md + ROLE.md + CONTEXT.md combination that totals >1,500 tokens, the session preamble contains the budget warning; token-counting the injected `=== SELF ===`, `=== ROLE ===`, and `=== CONTEXT ===` sections confirms all content is present.
+**T6 Always-loaded memory retrieval is part of session start.**  
+At session start, `start.sh` emits a memory-retrieval prompt instructing the agent to search MCP memory for identity/values, current priorities, and task context before responding.  
+Pass: the prompt text is emitted after the git pull completes and names all three required search topics.
 
 **T7 Every "must happen every session" behavior has a hook implementation.**  
-All behaviors that the design doc describes as occurring at every session start or session end — pulling repos, injecting context, committing, pushing, updating the mcp-memory index — are implemented in shell hooks, not only in AGENTS.md instructions.  
-Pass: for each required session behavior, the corresponding logic exists in `hooks/start.sh`, `hooks/end.sh`, or `hooks/post-commit.sh`; no required behavior exists only as an AGENTS.md instruction.
+All behaviors that the design doc describes as occurring at every session start or session end — pulling repos, emitting the memory-retrieval prompt, committing, pushing — are implemented in shell hooks, not only in AGENTS.md instructions.  
+Pass: for each required session behavior, the corresponding logic exists in `hooks/start.sh` or `hooks/end.sh`; no required behavior exists only as an AGENTS.md instruction.
 
 **T8 Cross-role patterns stay in `personal/` custody; role-specific patterns stay in their Role.**  
 After a full reflect cycle, SELF.md contains only patterns that appeared in ≥2 Roles; ROLE.md files contain only patterns specific to that Role; no role-specific pattern has migrated into SELF.md; no cross-role pattern sits only in a ROLE.md.  

@@ -57,13 +57,13 @@ The nouns used throughout this spec.
 
 **Task Folder** — a working directory inside a Role for a specific piece of work (a proposal, an analysis, an investigation). Named in kebab-case. Contains a `README.md` and whatever artifacts the work produces. Active task folders live directly in the Role directory; completed ones move to `Archive/YYYY-MM/`.
 
-**Session** — a single interactive conversation with the agent. The intended experience is to open the appropriate Role directory as the workspace root in Cursor or Claude Code — not the base directory, not a subdirectory. The Role directory is the unit of context: hooks fire relative to it, credentials are sourced from it, and the prompt stack is assembled from its contents. Opening the wrong directory means the wrong identity, the wrong tools, and no hook lifecycle. The session-start hook loads context; the session-end hook commits and pushes.
+**Session** — a single interactive conversation with the agent. The intended experience is to open the appropriate Role directory as the workspace root in Cursor or Claude Code — not the base directory, not a subdirectory. The Role directory is the unit of context: hooks fire relative to it, credentials are sourced from it, and context is retrieved from MCP memory at session start. Opening the wrong directory means the wrong role derivation and no hook lifecycle. The session-start hook pulls and prompts memory retrieval; the session-end hook commits and pushes.
 
 **Heartbeat** — a single OODA loop cycle (optional). Runs on your schedule via **`beckett run <role-dir>`**. Pre-flight guards determine whether an LLM is invoked; most heartbeats are no-ops.
 
-**Hook** — a shell script that fires at a lifecycle event. Three hooks: session-start (pulls, injects context), session-end (commits, pushes), post-commit (updates mcp-memory index if `Memory/` changed). Hooks are role-agnostic; the Role is derived from `$PWD`.
+**Hook** — a shell script that fires at a lifecycle event. Two hooks: session-start (pulls, emits memory-retrieval prompt), session-end (commits, pushes). Hooks are role-agnostic; the Role is derived from `$PWD`.
 
-**Prompt Stack** — the ordered set of documents injected at session start: global `AGENTS.md`, `SELF.md`, `ROLE.md`, optional Role-local `AGENTS.md`, `CONTEXT.md`, and the three Level 1 indexes. Everything else is retrieved on demand via progressive disclosure.
+**Session Context** — the working context for a session. At session start, `start.sh` emits a structured prompt instructing the agent to search MCP memory for identity/values, current role priorities, and project-relevant context. The agent retrieves what it needs on demand via `memory_search`; no files are injected.
 
 **Memory** — curated facts stored as markdown files in `[role]/Memory/`. One file per subject (person, project, decision). Written by the agent during or after a session; never chunked; indexed in mcp-memory for semantic search.
 
@@ -139,14 +139,14 @@ The default base directory is `~/Desktop`. This is configurable via `masks setup
         └── README.md
 ```
 
-`.env` files are never committed. The bundled `.env.example` documents **base** keys only (no Google account labels and no Gmail tokens). Role-local keys—including **`GWS_PROFILE`** for the **gws** CLI—live in `templates/role.env.example`, copied to `[role]/.env` when `--role-env` is used. By default, `masks setup` creates and seeds only `[base]/.env` (`MASKS_BASE`, `MCP_MEMORY_DB_PATH`). Role `.env` files are optional overrides. `masks setup --role-env` and `masks add-role --role-env` create role `.env` from the role template and seed defaults (including `GWS_PROFILE` for the `personal` and `work` roles) without overwriting non-empty existing values. Each Role's `.gitignore` explicitly ignores `.env`.
+`.env` files are never committed. The bundled `.env.example` documents **base** keys only (no Google account labels and no Gmail tokens). Role-local keys—including **`GWS_PROFILE`** for the **gws** CLI—live in `templates/role.env.example`, copied to `[role]/.env` when `--role-env` is used. By default, `masks setup` creates and seeds only `[base]/.env` (`MASKS_BASE`). Role `.env` files are optional overrides. `masks setup --role-env` and `masks add-role --role-env` create role `.env` from the role template and seed defaults (including `GWS_PROFILE` for the `personal` and `work` roles) without overwriting non-empty existing values. Each Role's `.gitignore` explicitly ignores `.env`.
 
 **What lives where:**
 
 
 | Location      | Contents                                                                                  |
 | ------------- | ----------------------------------------------------------------------------------------- |
-| `[base]/.env` | Cross-role infrastructure: mcp-memory DB path, shared API keys (Todoist, GitLab, etc.)   |
+| `[base]/.env` | Cross-role infrastructure: `MASKS_BASE`, shared API keys (Todoist, GitLab, etc.)        |
 | `[role]/.env` | Optional role-specific overrides (takes precedence over base when present), including **`GWS_PROFILE`** for Google Calendar/Mail via **gws** |
 
 ### Google Workspace (`gws` CLI)
@@ -260,35 +260,17 @@ Example `work/ROLE.md`:
 
 ---
 
-## The Prompt Stack
+## Session Context
 
-The prompt stack is assembled by the session-start hook and injected at the top of every interactive session. It only works correctly when the workspace root is the Role directory — `~/Desktop/work/`, not `~/Desktop/` and not `~/Desktop/work/some-task/`. Everything in the stack is relative to that root.
+Context for a session is retrieved on demand from MCP memory. At session start, `start.sh` emits a structured prompt instructing the agent to search memory for:
 
-For a work session:
+1. **Identity and values** — search query `"identity values how I work"`
+2. **Current priorities and active work** — search tags `["context"]` combined with the role name
+3. **Project or task context** — any relevant context for the specific work at hand
 
-```
-1. AGENTS.md (global)          ← how this system works (always first)
-2. personal/SELF.md            ← the self-narrative (cross-role, always loaded)
-3. work/ROLE.md                ← how I operate in this role
-4. work/AGENTS.md (optional)   ← work-specific tool behavior
-5. work/CONTEXT.md             ← current work focus (injected by hook)
-   + work/Archive/INDEX.md     ← work history index (injected by hook)
-   + work/Memory/INDEX.md      ← memory index; full files retrieved on demand
-   + work/Reference/INDEX.md   ← reference index; full docs retrieved on demand
-```
+The agent uses `memory_search` proactively before responding to the first user request. This replaces the previous file-injection approach. No documents are cat'd into the session; context flows from memory.
 
-For a personal session:
-
-```
-1. AGENTS.md (global)               ← how this system works
-2. personal/SELF.md                 ← the self-narrative (cross-role, always loaded)
-3. personal/ROLE.md                 ← personal behavioral delta
-4. personal/AGENTS.md (optional)    ← personal-specific tool behavior
-5. personal/CONTEXT.md              ← current personal focus (injected by hook)
-   + personal/Archive/INDEX.md      ← personal history index (injected by hook)
-   + personal/Memory/INDEX.md       ← memory index; full files retrieved on demand
-   + personal/Reference/INDEX.md    ← reference index; full docs retrieved on demand
-```
+For the session to work correctly, the workspace root must be the Role directory — `~/Desktop/work/`, not `~/Desktop/` and not `~/Desktop/work/some-task/`. Role name is always `basename "$PWD"`.
 
 ---
 
@@ -413,28 +395,11 @@ Every memory entry carries two mandatory tags:
 
 Optional tags (added by the agent when writing the memory file) narrow further: `type:person`, `type:decision`, `topic:pricing`, etc.
 
-### Indexing: hook-based, incremental
+### Indexing: on-demand
 
-The database is maintained by a **post-commit git hook** in each Role directory, installed by `masks setup`. It fires after the session-end commit and calls `masks index <role>`. The hook exits immediately if no `Memory/` files changed — most commits involve no memory writes.
+`masks index <role>` updates the mcp-memory database for a Role. It uses the `mcp_memory_service` Python library directly (the same library that backs the running MCP server). No subprocess, no dependency on the MCP server process being alive.
 
-`masks index` uses the `mcp_memory_service` Python library directly (the same library that backs the running MCP server). No subprocess, no dependency on the MCP server process being alive.
-
-```bash
-#!/bin/bash
-# ~/.pirandello/hooks/post-commit.sh (also wired as .git/hooks/post-commit in each Role)
-
-REPO="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-CHANGED=$(git diff --name-only HEAD~1 HEAD -- Memory/)
-DELETED=$(git diff --name-status HEAD~1 HEAD -- Memory/ | awk '/^D/{print $2}')
-
-[[ -z "$CHANGED" && -z "$DELETED" ]] && exit 0
-
-BASE=$(dirname "$REPO")
-ROLE=$(basename "$REPO")
-[[ -f "$BASE/.env" ]] && source "$BASE/.env"
-
-masks index "$ROLE"
-```
+Run `masks index <role>` on demand after importing memory files from an external source, or `masks index <role> --rebuild` to do a full re-ingest.
 
 `masks index` logic:
 
@@ -462,7 +427,7 @@ await storage.retrieve(query, tags=[f"role:{role}"])  # semantic search scoped t
 await storage.close()
 ```
 
-The database path is read from `MCP_MEMORY_DB_PATH` in `[base]/.env`.
+The database path is configured in the MCP server settings (default: `~/Library/Application Support/mcp-memory/sqlite_vec.db`). Both `masks index` and the MCP server process read from the same path.
 
 ---
 
@@ -478,8 +443,7 @@ Contains the system — conventions, skills, templates, and the `masks` CLI. No 
 ├── .gitignore              ← ignores .env
 ├── hooks/                  ← hook scripts (source of truth; mirrored into cli/masks/_data/)
 │   ├── start.sh
-│   ├── end.sh
-│   └── post-commit.sh
+│   └── end.sh
 ├── templates/
 │   ├── AGENTS.md           ← global conventions template (mirrored into cli/masks/_data/)
 │   ├── role.env.example    ← per-role `.env` template (see above)
@@ -520,7 +484,7 @@ masks <command>
 ### Commands
 
 `**masks setup [--base PATH] [--role-env|--no-role-env]**`
-First-time setup. Deploys hook scripts to `~/.pirandello/hooks/` from the bundled package data. Creates the base directory structure, seeds index files, copies `AGENTS.md` from bundled package data to `[base]/AGENTS.md` and each Role directory, copies `.env.example` to `[base]/.env`, seeds default base `.env` values for first run (`MASKS_BASE`, `MCP_MEMORY_DB_PATH`), copies `.gitignore` template to each Role directory, initializes git repos. Role `.env` files are optional by default and only created when `--role-env` is passed (from `templates/role.env.example`, with `GWS_PROFILE` defaulted for `personal` and `work`). When re-run, overwrites `AGENTS.md` and hook scripts in-place (creating timestamped `.bak` backups of any prior versions); leaves `.gitignore` untouched and only fills missing default `.env` keys. Default base: `~/Desktop`. OODA templates and guards ship with **`beckett`**, not the `masks` wheel.
+First-time setup. Deploys hook scripts to `~/.pirandello/hooks/` from the bundled package data. Creates the base directory structure, seeds index files, copies `AGENTS.md` from bundled package data to `[base]/AGENTS.md` and each Role directory, copies `.env.example` to `[base]/.env`, seeds default base `.env` values for first run (`MASKS_BASE`), copies `.gitignore` template to each Role directory, initializes git repos. Role `.env` files are optional by default and only created when `--role-env` is passed (from `templates/role.env.example`, with `GWS_PROFILE` defaulted for `personal` and `work`). When re-run, overwrites `AGENTS.md` and hook scripts in-place (creating timestamped `.bak` backups of any prior versions); leaves `.gitignore` untouched and only fills missing default `.env` keys. Default base: `~/Desktop`. OODA templates and guards ship with **`beckett`**, not the `masks` wheel.
 
 `**masks add-role <name> [--remote URL] [--role-env|--no-role-env]**`
 Adds a new Role directory under the base path with the standard reserved structure (`Memory/`, `Reference/`, `Archive/`). Copies `.gitignore` template to `[role]/.gitignore`. Role `.env` is optional by default; pass `--role-env` to create `[role]/.env` from `templates/role.env.example` and seed defaults (`MASKS_BASE`, and `GWS_PROFILE` when the role name is `personal` or `work`). Interactive mode also creates role `.env` so the add-role skill can collect per-role credentials. Optionally wires a git remote. When run interactively, delegates to the `add-role` skill for the conversational part — asks for each credential by name, explains what it is and where to find it, and writes the values into `[role]/.env` directly so the user never has to edit the file manually. Prompts for signal sources at the same time. Also invokable as a standalone skill from inside a session.
@@ -538,10 +502,10 @@ Entry point for the synthesis and reflection ritual. Delegates LLM work to the `
 Runs the `mask-reference-refresh` skill for one Role. If `--role` is omitted, the command infers the Role from the current workspace path under `$BASE`; if inference fails, it exits with an explicit error requiring `--role`. `--non-interactive` sets `PIRANDELLO_NONINTERACTIVE=1` for unattended runs (for example, cron-driven invocations). `--dry-run` plans and reports refresh actions without writing files.
 
 `**masks index <role> [--rebuild]**`
-Updates the mcp-memory database for a Role. Without `--rebuild`, diffs `HEAD~1..HEAD` in the Role's `Memory/` directory — evicts stale entries for modified and deleted files, ingests added and modified files. With `--rebuild`, clears all `role:<role>` entries and re-ingests everything from scratch. Called automatically by the post-commit hook; also callable on demand after a lost database or a Role migration. Reads `MCP_MEMORY_DB_PATH` from `[base]/.env`.
+Updates the mcp-memory database for a Role. Without `--rebuild`, diffs `HEAD~1..HEAD` in the Role's `Memory/` directory — evicts stale entries for modified and deleted files, ingests added and modified files. With `--rebuild`, clears all `role:<role>` entries and re-ingests everything from scratch. Run on demand to sync memory after importing or editing `Memory/` files.
 
 `**masks doctor**`
-Checks system health: `AGENTS.md` at base (file or symlink to readable target), role `.env` coverage rules, git remotes reachable, mcp-memory database path, always-loaded token budget (warn).
+Checks system health: `AGENTS.md` at base (file or symlink to readable target), role `.env` coverage rules, git remotes reachable, hook scripts present at `~/.pirandello/hooks/`.
 
 ### CLI commands and skills
 
@@ -770,48 +734,37 @@ Hooks wire Pirandello's lifecycle into the agent runtime. `masks setup` installs
 
 Each role directory is intended to be opened as a separate workspace. Hooks in `.cursor/hooks.json` are workspace-scoped and always know which role they're serving.
 
-The interactive start and OODA start are **distinct code paths** with different context injection strategies. Do not conflate them.
+The interactive start and OODA start are **distinct code paths**. The interactive start pulls and emits a memory-retrieval prompt; OODA uses `beckett`'s own context model. Do not conflate them.
 
 ---
 
 ### Session start — interactive
 
-Runs when an interactive session opens in a role directory. Derives `$BASE` and `$ROLE` from `$PWD` — no parameters needed.
+Runs when an interactive session opens in a role directory. Pulls the role repo and the `personal/` repo, then emits a structured memory-retrieval prompt to stdout. The agent reads the prompt and searches MCP memory for context before responding to any user request.
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 # ~/.pirandello/hooks/start.sh  (deployed from masks/_data/hooks/start.sh by masks setup)
+set +e
 
-BASE=$(dirname "$PWD")   # e.g. ~/Desktop
-ROLE=$(basename "$PWD")  # e.g. work
+BASE="$(cd "$(dirname "$PWD")" && pwd)" 2>/dev/null || BASE="$(dirname "$PWD")"
 
-# Bail early if this doesn't look like a Role workspace
-if [[ ! -f "$PWD/ROLE.md" || ! -f "$BASE/personal/SELF.md" || ! -f "$BASE/AGENTS.md" ]]; then
-  echo "Pirandello: workspace does not look like a Role directory. Open the Role directory as the workspace root." >&2
-  exit 0
+git pull --ff-only 2>/dev/null || true
+if [ -d "$BASE/personal/.git" ]; then
+  git -C "$BASE/personal" pull --ff-only 2>/dev/null || true
 fi
 
-# Source credentials — cross-role infrastructure first, then role-specific
-[[ -f "$BASE/.env" ]] && source "$BASE/.env"
-[[ -f .env ]] && source .env
+cat <<'PROMPT'
+=== SESSION START ===
+Before responding to any request, search MCP memory for working context:
+- Your identity and values: search query "identity values how I work"
+- Current priorities and active work: search tags ["context"] combined with your role name
+- Any relevant context for the project or task at hand
 
-# Pull this role's repo and personal/ (for latest SELF.md)
-git pull --ff-only 2>/dev/null || true
-git -C "$BASE/personal" pull --ff-only 2>/dev/null || true
+Use the memory_search tool proactively. Do not wait to be asked.
+PROMPT
 
-# Inject context stack
-# AGENTS.md at $BASE/AGENTS.md may be auto-discovered by Cursor via parent-directory
-# traversal. Injected here for parity with Claude Code and headless sessions.
-echo "=== GLOBAL AGENTS ===" && cat "$BASE/AGENTS.md"
-echo "=== SELF ===" && cat "$BASE/personal/SELF.md"
-echo "=== ROLE ===" && cat ROLE.md
-[[ -f AGENTS.md ]] && echo "=== ROLE AGENTS ===" && cat AGENTS.md
-[[ -f CONTEXT.md ]] && echo "=== CONTEXT ===" && cat CONTEXT.md
-
-# Level 1 indexes — surveyed at session start; full content retrieved on demand
-[[ -f Archive/INDEX.md   ]] && echo "=== ARCHIVE INDEX ===" && cat Archive/INDEX.md
-[[ -f Memory/INDEX.md    ]] && echo "=== MEMORY INDEX ===" && cat Memory/INDEX.md
-[[ -f Reference/INDEX.md ]] && echo "=== REFERENCE INDEX ===" && cat Reference/INDEX.md
+exit 0
 ```
 
 ---
@@ -830,32 +783,6 @@ if ! git diff --cached --quiet 2>/dev/null; then
   git commit -m "session: $(date '+%Y-%m-%d %H:%M')" 2>/dev/null || true
 fi
 git push 2>/dev/null || true
-```
-
----
-
-### Post-commit — database index
-
-Runs after the session-end commit. Exits immediately if no `Memory/` files changed — the common case. When `Memory/` was touched, calls `masks index <role>` to update the mcp-memory database incrementally.
-
-```bash
-#!/bin/bash
-# ~/.pirandello/hooks/post-commit.sh  (deployed from masks/_data/hooks/post-commit.sh by masks setup)
-# Also wired as .git/hooks/post-commit in each Role by masks setup.
-
-REPO="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-cd "$REPO" || exit 0
-if ! git rev-parse HEAD~1 >/dev/null 2>&1; then exit 0; fi   # initial commit: no diff
-
-CHANGED="$(git diff --name-only HEAD~1 HEAD -- Memory/ 2>/dev/null)"
-DELETED="$(git diff --name-status HEAD~1 HEAD -- Memory/ 2>/dev/null | awk '/^D/{print $2}')"
-
-[[ -z "$CHANGED" && -z "$DELETED" ]] && exit 0
-
-BASE="$(cd "$(dirname "$REPO")" && pwd 2>/dev/null)"
-[[ -f "$BASE/.env" ]] && source "$BASE/.env"
-
-masks index "$(basename "$REPO")" 2>/dev/null || true
 ```
 
 ---
@@ -915,7 +842,7 @@ This roadmap covers system construction only. Migration of existing content (SEL
 - Build `masks add-role` — adds a Role with standard reserved structure
 - Build `masks sync` — git pull + push for all Roles
 - Build `masks status` — git-focused summary per Role
-- Build `masks doctor` — checks base `AGENTS.md`, env, git remotes, memory DB path, token budget
+- Build `masks doctor` — checks base `AGENTS.md`, env, git remotes, hook scripts
 
 ### Phase 3 — Skills
 
@@ -931,7 +858,7 @@ This roadmap covers system construction only. Migration of existing content (SEL
 - Wire `beckett run <role-dir>` into cron at 15-minute interval
 - Implement `ooda-orient-synthesis` in **`beckett`** (weekly cross-Role synthesis pass; feeds `masks reflect`)
 - Build `masks reflect` — synthesis pass + PR opener on personal GitHub remote
-- Build `masks index` — incremental mcp-memory updater; called by post-commit hook and on demand with `--rebuild`
+- Build `masks index` — incremental mcp-memory updater; on-demand with `--rebuild`
 
 ### Phase 5 — Share
 
@@ -952,7 +879,7 @@ This roadmap covers system construction only. Migration of existing content (SEL
 ## Open Questions
 
 - **Role-specific skills:** How Role-specific skills are loaded depends on the agent runtime (Cursor vs Claude Code vs Hermes). Left open until a specific runtime makes it concrete.
-- **mcp-memory rebuild:** Resolved. Hook-based, incremental. Post-commit git hook calls `masks index <role>`, which diffs `HEAD~1..HEAD` in `Memory/`, evicts stale entries via `delete_by_tag`, and upserts changed files directly via the `mcp_memory_service` Python library. Full rebuild available via `masks index <role> --rebuild`. See "The mcp-memory Database" section.
+- **mcp-memory rebuild:** Resolved. `masks index <role>` diffs `HEAD~1..HEAD` in `Memory/`, evicts stale entries via `delete_by_tag`, and upserts changed files directly via the `mcp_memory_service` Python library. Full rebuild available via `masks index <role> --rebuild`. Run on demand. See "The mcp-memory Database" section.
 - **OODA_OK suppression:** `beckett run` logs `OODA_OK` to `.ooda.log` and exits silently. Suppression is handled in the `beckett` runner, not the LLM runtime. No further design needed unless a notification channel is added.
 
 ## See Also

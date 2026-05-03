@@ -21,7 +21,7 @@ Each buildable unit has its own spec and (forthcoming) scenarios file in `docs/s
 
 | Unit                      | Spec                                  | What it builds                                  |
 | ------------------------- | ------------------------------------- | ----------------------------------------------- |
-| Session hooks             | `docs/specs/session-hooks/`           | `start.sh`, `end.sh`, `post-commit.sh`          |
+| Session hooks             | `docs/specs/session-hooks/`           | `start.sh`, `end.sh`                            |
 | `masks` CLI core          | `docs/specs/masks-cli-core/`          | `setup`, `add-role`, `sync`, `status`, `doctor`, `reference-refresh` entrypoint |
 | `beckett run`             | (`beckett` package)                   | OODA heartbeat runner + pre-flight guard contract |
 | `masks index`             | `docs/specs/masks-index/`             | mcp-memory incremental indexer                  |

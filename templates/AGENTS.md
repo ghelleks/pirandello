@@ -1,44 +1,49 @@
 # Pirandello — agent conventions
 
-This file is the **global** `AGENTS.md`. It is symlinked from each Role's base directory so any workspace under that base discovers these rules. A Role may add a **local** `AGENTS.md` in the Role directory for tool-specific behavior; global rules always apply first.
+This file is the **global** `AGENTS.md`. It is copied into the base directory and each Role directory by `masks setup`. A Role may add a **local** `AGENTS.md` in its directory for role-specific behavior; global rules always apply first.
 
-## Workspace root
+## Workspace and roles
 
-The **session root is the Role directory** (e.g. the folder named `work` or `personal` under your configured base). Do **not** treat the base directory or a task subfolder as the git root for Pirandello lifecycle behavior.
+- **Base** — Parent directory holding all Roles (default: `~/Desktop`). Configured via `masks setup --base`.
+- **Role** — A context (e.g. `personal`, `work`). Each Role is its own git repository under the base path.
+- **Task folders** — Active work lives in kebab-case folders inside a Role directory. Each task folder has a `README.md` with title, status (active / complete / stale), summary, key outputs, and key decisions.
 
-If the workspace root is wrong, session hooks skip destructive work and print a clear message — fix the opened folder, not the hooks.
+## Memory
 
-## Roles model
+### Reading from memory
 
-- **Role** — A context (personal, work, etc.). Each Role is its own git repository under the base path.
-- **Base** — Parent directory holding all Roles. Default base is the user's Desktop unless configured via `masks setup --base`.
-- **SELF.md** — Cross-role working draft; lives only under `personal/`. Loaded in every Role session. Changes after onboarding go through the `masks reflect` pull-request ritual only (never direct commits from a session).
-- **ROLE.md** — Per-role behavioral delta (tools, norms, custody). Required in every Role including `personal/`.
-- **Memory/** — Curated markdown facts for that Role. **Write-local:** new facts discovered in a work session are written under **that Role's** `Memory/`, not under another Role's tree. Reading another Role's Memory for context is allowed when the user asks (global-read); writing there is not.
+When personal context is referenced without full details (my projects, my team, my priorities, stakeholders, etc.), search the MCP memory system using `memory_search` before responding. Examples:
 
-## Prompt stack (session start)
+- "my active projects" → search for project information
+- "my team" → search for direct reports and team structure
+- "this stakeholder" → search for stakeholder context
+- "my priorities" → search for strategic priorities
 
-Hooks inject context in a fixed order. See `docs/design.md` § "The Prompt Stack" for the full list. Level-1 indexes (`Archive/INDEX.md`, `Memory/INDEX.md`, `Reference/INDEX.md`) may be injected; deeper archive and reference bodies use **progressive disclosure** — read the README or summary before opening whole folders.
+Only search memory when context appears to be missing. Do not search if:
+- The information is already in the conversation
+- The question is general or hypothetical
+- The user is asking you to store new information
 
-## Task folders and archive
+### Writing to memory
 
-Active task folders live at the Role root (kebab-case). Each should have a `README.md` with title, status, summary, and key sections per `docs/design.md`. Completed work moves to `Archive/YYYY-MM/<folder>/` via the `mask-archive` skill; `Archive/INDEX.md` is updated first, then the folder is moved.
+Store persistent facts using `memory_store`. Tag memories by project, topic, and person so they are retrievable later. **Write-local:** facts discovered in a work session are stored with the role name as a tag; do not overwrite personal-context memories from a work session.
 
-## OODA heartbeat (`beckett`)
+Never write to local `Memory/` markdown files as a substitute for memory storage. When the user asks you to remember something, confirm it was stored.
 
-Non-interactive OODA uses **`beckett run <path-to-role>`**. `beckett run` uses a `loop.yaml` config (created with `beckett install`). `OODA.md`, if present in a role directory, is a human-readable planning document only — not read by `beckett`. See `docs/design.md` (OODA section) and the `beckett` package docs for setup and cron.
+## Activity history
 
-## Tools and reliability
+Git is the record of activity. Use `git log` to look up past work in a Role or task folder. Do not duplicate commit history into memory.
 
-- **Infrastructure enforces; instructions guide.** Commits, pushes, and index updates are owned by hooks and the `masks` CLI — not by promises in chat.
-- **`masks` CLI** — Install from this repository's `cli/` with `uv`. Commands include `setup`, `add-role`, `sync`, `status`, `doctor`, `index`, `reflect`, `reference-refresh` as implemented.
-- **Credentials** — Never commit `.env` files. Base keys: `.env.example`. Per-role keys (including `GWS_PROFILE` for **gws**): `templates/role.env.example`.
+## Session lifecycle
 
-## Size and context discipline
+`masks setup` installs session hooks. On session start, `start.sh` pulls the latest git changes and prompts you to retrieve context from MCP memory before proceeding. On session end, `end.sh` commits staged changes and pushes.
 
-- **SELF.md** and **ROLE.md** each target ≤500 tokens (per-file hard limit in product specs).
-- **Combined** `SELF.md` + `ROLE.md` + `CONTEXT.md` targets ≤1500 tokens; when exceeded, session start **warns** — it does not truncate injected content.
+Before ending a session with meaningful work, write a descriptive final commit message rather than relying on the timestamped default.
+
+## Credentials
+
+Never commit `.env` files or credentials. Secrets stay in `.env` files that are gitignored.
 
 ## Further reading
 
-Full system design, custody model, and examples: **`docs/design.md`**.
+Full system design and custody model: **`docs/design.md`**.

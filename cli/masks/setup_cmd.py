@@ -9,7 +9,7 @@ from typing import Optional
 import typer
 
 from masks.hooks import copy_with_backup, deploy_shared_hooks, install_hooks_for_role
-from masks.paths import default_memory_db_path, merge_env_file, resolve_base_path, resolve_framework_root
+from masks.paths import merge_env_file, resolve_base_path, resolve_framework_root
 
 DEFAULT_ROLES = ("personal", "work")
 
@@ -148,20 +148,11 @@ def setup_command(base: Optional[Path] = None, create_role_env: bool = False) ->
     if agents_src.is_file():
         typer.echo(f"Base AGENTS.md: {copy_with_backup(agents_src, base_path / 'AGENTS.md')}")
 
-    db_default = default_memory_db_path()
-    if not db_default.parent.is_dir():
-        db_default.parent.mkdir(parents=True, exist_ok=True)
-        typer.echo(f"Memory DB dir: CREATED {db_default.parent}")
-    else:
-        typer.echo(f"Memory DB dir: EXISTS {db_default.parent}")
     base_env = base_path / ".env"
     if base_env.is_file():
         from masks.env_util import apply_env_file
-        existing = {}
+        existing: dict = {}
         apply_env_file(base_env, existing)
         if not existing.get("MASKS_BASE", "").strip():
             merge_env_file(base_env, "MASKS_BASE", str(base_path))
             typer.echo(f"MASKS_BASE: defaulted to {base_path}")
-        if not existing.get("MCP_MEMORY_DB_PATH", "").strip():
-            merge_env_file(base_env, "MCP_MEMORY_DB_PATH", str(db_default))
-            typer.echo(f"MCP_MEMORY_DB_PATH: defaulted to {db_default}")

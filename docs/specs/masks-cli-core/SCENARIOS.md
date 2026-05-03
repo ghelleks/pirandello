@@ -78,10 +78,10 @@ Metric cross-references: M-05
 
 ### 5. `masks doctor` on a healthy system
 
-A user runs `masks doctor` on a fully configured, connected system. All blocking checks should pass; `always_loaded_budget` may WARN.
+A user runs `masks doctor` on a fully configured, connected system. All blocking checks should pass.
 
 Questions the proposal must answer:
-- Does the command print a clearly labelled pass/warn result for each check (`agents_global`, `role_env`, `git_remote`, `mcp_memory_db`, `always_loaded_budget`)?
+- Does the command print a clearly labelled pass result for each check (`agents_global`, `role_env`, `git_remote`, `hooks_deployed`)?
 - Does it exit 0?
 - Can the output be parsed by a script (or is `--json` provided)?
 
@@ -91,7 +91,7 @@ Metric cross-references: M-06, M-07
 
 ### 6. `masks doctor` with failures
 
-A user runs `masks doctor`. The mcp-memory DB file is missing, one Role's remote is unreachable (network down), base `.env` is empty and one role has an empty `.env`. Multiple blocking checks fail; the always-loaded budget check still runs and reports separately.
+A user runs `masks doctor`. One Role's remote is unreachable (network down), base `.env` is empty and one role has an empty `.env`. Multiple blocking checks fail; the hooks check still runs and reports separately.
 
 Questions the proposal must answer:
 - Does the command print a clear FAIL result for each failing check, naming exactly what failed?
@@ -170,7 +170,7 @@ Running `masks setup` twice on a fully initialized system produces no file chang
 Pass: a `diff` of all affected directories before and after the second run shows zero changes; exit code is 0.
 
 **T3 `masks setup` creates every required artifact on a fresh machine.**  
-After the first run, every item in the spec's `masks setup` requirements list exists: directories, `INDEX.md` files, `AGENTS.md` at `$BASE` and in each Role, hook scripts in `~/.pirandello/hooks/`, base `.env` (and role `.env` only in `--role-env` mode), `.gitignore`, and `.cursor/hooks.json` pointing at `~/.pirandello/hooks/`.  
+After the first run, every item in the spec's `masks setup` requirements list exists: directories, `INDEX.md` files, `AGENTS.md` at `$BASE` and in each Role, hook scripts (`start.sh`, `end.sh`) in `~/.pirandello/hooks/`, base `.env` (and role `.env` only in `--role-env` mode), `.gitignore`, and `.cursor/hooks.json` pointing at `~/.pirandello/hooks/`.  
 Pass: a checklist script enumerating each artifact returns "present" for all items.
 
 **T4 `masks add-role` creates complete Role structure.**  
@@ -182,8 +182,8 @@ Running `masks sync` on a single Role with no `origin` remote results in a warni
 Pass: exit code is 0; output contains a human-readable warning naming the skipped Role.
 
 **T6 `masks doctor` structured output.**  
-Running `masks doctor` produces exactly one clearly labelled pass/fail/warn line per check for all checks, regardless of outcome.  
-Pass: the output contains five labelled lines (or five JSON objects); no check is silently omitted.
+Running `masks doctor` produces exactly one clearly labelled pass/fail line per check for all checks, regardless of outcome.  
+Pass: the output contains four labelled lines (or four JSON objects); no check is silently omitted.
 
 **T7 `masks doctor` exits non-zero on any failure.**  
 If one or more doctor checks fail, the command exits with a non-zero exit code.  
